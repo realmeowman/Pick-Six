@@ -1,0 +1,28 @@
+{
+  "players": [
+    { "name": "Aaron Judge", "team": "Yankees", "league": "AL", "division": "East", "position": "OF", "age": 32, "number": 99, "statsType": "hitter", "battingAvg": ".267", "homeRuns": 37, "rbi": 75 },
+    { "name": "Shohei Ohtani", "team": "Dodgers", "league": "NL", "division": "West", "position": "DH", "age": 30, "number": 17, "statsType": "hitter", "battingAvg": ".304", "homeRuns": 44, "rbi": 95 },
+    { "name": "Mookie Betts", "team": "Dodgers", "league": "NL", "division": "West", "position": "SS", "age": 32, "number": 50, "statsType": "hitter", "battingAvg": ".295", "homeRuns": 26, "rbi": 82 },
+    { "name": "Freddie Freeman", "team": "Dodgers", "league": "NL", "division": "West", "position": "1B", "age": 35, "number": 5, "statsType": "hitter", "battingAvg": ".295", "homeRuns": 29, "rbi": 102 },
+    { "name": "Ronald Acuña Jr.", "team": "Braves", "league": "NL", "division": "East", "position": "OF", "age": 27, "number": 13, "statsType": "hitter", "battingAvg": ".337", "homeRuns": 41, "rbi": 106 },
+    { "name": "Juan Soto", "team": "Yankees", "league": "AL", "division": "East", "position": "OF", "age": 26, "number": 22, "statsType": "hitter", "battingAvg": ".303", "homeRuns": 35, "rbi": 109 },
+    { "name": "Bryce Harper", "team": "Phillies", "league": "NL", "division": "East", "position": "1B", "age": 32, "number": 3, "statsType": "hitter", "battingAvg": ".293", "homeRuns": 33, "rbi": 97 },
+    { "name": "José Ramírez", "team": "Guardians", "league": "AL", "division": "Central", "position": "3B", "age": 32, "number": 11, "statsType": "hitter", "battingAvg": ".279", "homeRuns": 24, "rbi": 91 },
+    { "name": "Vladimir Guerrero Jr.", "team": "Blue Jays", "league": "AL", "division": "East", "position": "1B", "age": 25, "number": 27, "statsType": "hitter", "battingAvg": ".264", "homeRuns": 26, "rbi": 92 },
+    { "name": "Fernando Tatis Jr.", "team": "Padres", "league": "NL", "division": "West", "position": "OF", "age": 26, "number": 23, "statsType": "hitter", "battingAvg": ".257", "homeRuns": 25, "rbi": 75 },
+    { "name": "Yordan Alvarez", "team": "Astros", "league": "AL", "division": "West", "position": "DH", "age": 27, "number": 44, "statsType": "hitter", "battingAvg": ".293", "homeRuns": 31, "rbi": 97 },
+    { "name": "Bobby Witt Jr.", "team": "Royals", "league": "AL", "division": "Central", "position": "SS", "age": 24, "number": 7, "statsType": "hitter", "battingAvg": ".311", "homeRuns": 30, "rbi": 96 },
+    { "name": "Corey Seager", "team": "Rangers", "league": "AL", "division": "West", "position": "SS", "age": 30, "number": 5, "statsType": "hitter", "battingAvg": ".257", "homeRuns": 33, "rbi": 92 },
+    { "name": "Mike Trout", "team": "Angels", "league": "AL", "division": "West", "position": "OF", "age": 33, "number": 27, "statsType": "hitter", "battingAvg": ".220", "homeRuns": 18, "rbi": 45 },
+    { "name": "Gunnar Henderson", "team": "Orioles", "league": "AL", "division": "East", "position": "SS", "age": 23, "number": 2, "statsType": "hitter", "battingAvg": ".268", "homeRuns": 28, "rbi": 82 },
+    { "name": "Paul Goldschmidt", "team": "Yankees", "league": "AL", "division": "East", "position": "1B", "age": 37, "number": 46, "statsType": "hitter", "battingAvg": ".254", "homeRuns": 25, "rbi": 86 },
+    { "name": "Corbin Burnes", "team": "Orioles", "league": "AL", "division": "East", "position": "P", "age": 30, "number": 39, "statsType": "pitcher", "era": "2.73", "strikeouts": 238 },
+    { "name": "Zac Gallen", "team": "Diamondbacks", "league": "NL", "division": "West", "position": "P", "age": 29, "number": 23, "statsType": "pitcher", "era": "3.08", "strikeouts": 192 },
+    { "name": "Spencer Strider", "team": "Braves", "league": "NL", "division": "East", "position": "P", "age": 26, "number": 65, "statsType": "pitcher", "era": "3.86", "strikeouts": 281 },
+    { "name": "Gerrit Cole", "team": "Yankees", "league": "AL", "division": "East", "position": "P", "age": 34, "number": 45, "statsType": "pitcher", "era": "3.23", "strikeouts": 222 },
+    { "name": "Tarik Skubal", "team": "Tigers", "league": "AL", "division": "Central", "position": "P", "age": 28, "number": 29, "statsType": "pitcher", "era": "2.97", "strikeouts": 204 },
+    { "name": "Logan Gilbert", "team": "Mariners", "league": "AL", "division": "West", "position": "P", "age": 28, "number": 36, "statsType": "pitcher", "era": "3.06", "strikeouts": 195 },
+    { "name": "Max Fried", "team": "Braves", "league": "NL", "division": "East", "position": "P", "age": 31, "number": 54, "statsType": "pitcher", "era": "2.55", "strikeouts": 174 },
+    { "name": "Tyler Glasnow", "team": "Yankees", "league": "AL", "division": "East", "position": "P", "age": 31, "number": 36, "statsType": "pitcher", "era": "3.53", "strikeouts": 221 }
+  ]
+}

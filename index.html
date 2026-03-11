@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pick Six — MLB Edition</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app">
+    <div class="streak" id="streak" aria-label="Win streak"></div>
+    <header>
+      <h1>Pick Six</h1>
+      <p class="tagline">Match the mystery player using 6 clues. 6 guesses.</p>
+      <div class="header-meta">
+        <p class="attempts" id="attempts">Attempts: <span id="attemptCount">5</span></p>
+        <p class="timer" id="timer">0:00</p>
+        <button id="newGameBtn" type="button" class="secondary small">Start new game</button>
+      </div>
+    </header>
+
+    <main>
+      <section class="guess-section">
+        <div class="filters">
+          <label for="leagueFilter">League</label>
+          <select id="leagueFilter">
+            <option value="">All</option>
+            <option value="AL">AL</option>
+            <option value="NL">NL</option>
+          </select>
+          <label for="teamFilter">Team</label>
+          <select id="teamFilter">
+            <option value="">All</option>
+          </select>
+        </div>
+        <label for="guessSelect">Select a player</label>
+        <div class="input-row">
+          <select id="guessSelect">
+            <option value="">-- Choose a player --</option>
+          </select>
+          <button id="guessBtn" type="button">Guess</button>
+        </div>
+      </section>
+
+      <section class="bonus-section">
+        <button id="bonusClueBtn" type="button" class="secondary">
+          Unlock bonus clue
+        </button>
+        <div id="bonusClue" class="bonus-clue hidden"></div>
+      </section>
+
+      <section class="feedback-section">
+        <div id="message" class="message"></div>
+        <div class="clue-grid" id="clueGrid">
+          <div class="clue-slot" data-key="league">
+            <span class="clue-label">League</span>
+            <div class="clue-value hidden"><span class="value-text"></span></div>
+            <div class="clue-hidden"><span class="baseball-icon" aria-hidden="true">⚾</span></div>
+          </div>
+          <div class="clue-slot" data-key="division">
+            <span class="clue-label">Division</span>
+            <div class="clue-value hidden"><span class="value-text"></span></div>
+            <div class="clue-hidden"><span class="baseball-icon" aria-hidden="true">⚾</span></div>
+          </div>
+          <div class="clue-slot" data-key="team">
+            <span class="clue-label">Team</span>
+            <div class="clue-value hidden"><span class="value-text"></span></div>
+            <div class="clue-hidden"><span class="baseball-icon" aria-hidden="true">⚾</span></div>
+          </div>
+          <div class="clue-slot" data-key="position">
+            <span class="clue-label">Position</span>
+            <div class="clue-value hidden"><span class="value-text"></span></div>
+            <div class="clue-hidden"><span class="baseball-icon" aria-hidden="true">⚾</span></div>
+          </div>
+          <div class="clue-slot" data-key="age">
+            <span class="clue-label">Age</span>
+            <div class="clue-value hidden"><span class="value-text"></span></div>
+            <div class="clue-hidden"><span class="baseball-icon" aria-hidden="true">⚾</span></div>
+          </div>
+          <div class="clue-slot" data-key="number">
+            <span class="clue-label">Number</span>
+            <div class="clue-value hidden"><span class="value-text"></span></div>
+            <div class="clue-hidden"><span class="baseball-icon" aria-hidden="true">⚾</span></div>
+          </div>
+        </div>
+        <div class="wrong-guesses" id="wrongGuesses">
+          <span class="wrong-guesses-label">Wrong guesses:</span>
+          <span class="wrong-guesses-list" id="wrongGuessesList">—</span>
+        </div>
+      </section>
+
+      <section class="game-over hidden" id="gameOver">
+        <h2 id="gameOverTitle"></h2>
+        <p id="gameOverText"></p>
+        <button id="playAgainBtn" type="button">Start new game</button>
+      </section>
+    </main>
+  </div>
+
+  <script src="players-data.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
