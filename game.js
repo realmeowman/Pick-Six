@@ -25,6 +25,7 @@ let currentSport = 'mlb';
 let players = [];
 let revealedCriteria = new Set();
 let exactRevealedCriteria = new Set();
+let revealedQuality = {};
 let answer = null;
 let attemptsLeft = MAX_ATTEMPTS;
 let bonusClueUnlocked = false;
@@ -62,6 +63,8 @@ const elements = {
   gameOverText: () => $('#gameOverText'),
   playAgainBtn: () => $('#playAgainBtn'),
   streak: () => $('#streak'),
+  sportIcon: () => $('#sportIcon'),
+  tagline: () => $('#tagline'),
 };
 
 function getSportConfig() {
@@ -78,22 +81,56 @@ function getClueGrid() {
   return currentSport === 'golf' ? elements.clueGridGolf() : elements.clueGridMlb();
 }
 
-const STREAK_KEY = 'pickSixStreak';
+const STREAK_KEYS = {
+  mlb: 'pickSixStreak_mlb',
+  golf: 'pickSixStreak_golf',
+};
 
-function getStreak() {
+function getStreakKey(sport = currentSport) {
+  return STREAK_KEYS[sport] || 'pickSixStreak';
+}
+
+function getStreak(sport = currentSport) {
+  const key = getStreakKey(sport);
   try {
-    return parseInt(localStorage.getItem(STREAK_KEY) || '0', 10);
+    return parseInt(localStorage.getItem(key) || '0', 10);
   } catch (_) { return 0; }
 }
 
-function setStreak(n) {
-  try { localStorage.setItem(STREAK_KEY, String(n)); } catch (_) {}
+function setStreak(n, sport = currentSport) {
+  const key = getStreakKey(sport);
+  try { localStorage.setItem(key, String(n)); } catch (_) {}
 }
 
 function updateStreakDisplay() {
-  const streak = getStreak();
+  const streak = getStreak(currentSport);
   elements.streak().textContent = streak > 0 ? '🏆'.repeat(streak) : '';
-  elements.streak().ariaLabel = streak > 0 ? `${streak} win streak` : '';
+  if (streak > 0) {
+    const sportLabel = currentSport === 'golf' ? 'golf' : 'MLB';
+    elements.streak().ariaLabel = `${streak} win streak in ${sportLabel}`;
+  } else {
+    elements.streak().ariaLabel = 'Win streak';
+  }
+}
+
+const TAGLINES = {
+  mlb: 'Find the mystery player using 6 clues. 6 guesses.',
+  golf: 'Find the mystery player using 6 clues. 6 guesses.',
+};
+
+const SPORT_ICONS = {
+  mlb: '⚾',
+  golf: '⛳',
+};
+
+function updateHeaderForSport() {
+  if (elements.tagline()) {
+    elements.tagline().textContent = TAGLINES[currentSport] || 'Find the mystery player using 6 clues. 6 guesses.';
+  }
+  if (elements.sportIcon()) {
+    elements.sportIcon().textContent = SPORT_ICONS[currentSport] || '⚾';
+    elements.sportIcon().setAttribute('aria-label', currentSport === 'golf' ? 'Golf mode' : 'MLB mode');
+  }
 }
 
 function normalizeName(name) {
@@ -210,6 +247,7 @@ function playSound(type) {
 function resetClueSlots() {
   revealedCriteria.clear();
   exactRevealedCriteria.clear();
+  revealedQuality = {};
   const cfg = getSportConfig();
   const grid = getClueGrid();
   cfg.criteriaKeys.forEach(key => {
@@ -269,12 +307,15 @@ function revealClue(key, guess, forceVal) {
     text = result.text;
     hint = result.hint;
     revealedCriteria.add(key);
+    revealedQuality[key] = result.hint === 'correct' ? 'full' : result.hint === 'close' ? 'close' : 'far';
     if (result.hint === 'correct') exactRevealedCriteria.add(key);
   } else if (forceVal !== undefined) {
     text = String(forceVal);
     revealedCriteria.add(key);
+    revealedQuality[key] = 'full';
   } else if (!revealedCriteria.has(key)) {
     revealedCriteria.add(key);
+    revealedQuality[key] = 'full';
     text = getAnswerVal(key);
   } else return;
 
@@ -382,7 +423,6 @@ function formatAnswerSummary() {
 
 function showSportUI() {
   const cfg = getSportConfig();
-  const showFilters = cfg.hasFilters && !legendsMode;
   elements.filtersContainer().classList.toggle('hidden', !cfg.hasFilters);
   elements.filtersMlb().classList.toggle('hidden', currentSport !== 'mlb');
   elements.filtersGolf().classList.toggle('hidden', currentSport !== 'golf');
@@ -393,6 +433,7 @@ function showSportUI() {
   $$('.legends-mode').forEach(btn => btn.classList.toggle('active', legendsMode));
   elements.clueGridMlb().classList.toggle('hidden', currentSport !== 'mlb');
   elements.clueGridGolf().classList.toggle('hidden', currentSport !== 'golf');
+  updateHeaderForSport();
   $$('.sport-tab').forEach(tab => {
     tab.classList.toggle('active', tab.dataset.sport === currentSport);
     tab.setAttribute('aria-selected', tab.dataset.sport === currentSport);
@@ -481,21 +522,74 @@ function unlockBonusClue() {
 }
 
 function calculateScore(won) {
-  if (!gameStartTime) return 100;
-  const elapsed = (Date.now() - gameStartTime) / 1000;
+  return getScoreBreakdown(won).score;
+}
+
+function getScoreBreakdown(won) {
   const noFilterBonus = getSportConfig().hasFilters ? (legendsMode || !filtersUsedThisGame ? 15 : 0) : 15;
+  const lines = [];
   let score;
+
   if (won) {
-    score = 100 - (guesses.length - 1) * 12 - Math.min(15, Math.floor(elapsed / 6)) + noFilterBonus;
+    const elapsed = gameStartTime ? (Date.now() - gameStartTime) / 1000 : 0;
+    const guessPenalty = (guesses.length - 1) * 12;
+    const timePenalty = Math.min(20, Math.floor(elapsed / 4));
+    score = 100 - guessPenalty - timePenalty + noFilterBonus;
+    const max = legendsMode ? 100 : 89;
+    score = Math.round(Math.max(61, Math.min(max, score)));
+
+    lines.push({ label: 'Base score', value: 100 });
+    if (guessPenalty > 0) lines.push({ label: `${guesses.length - 1} extra guess${guesses.length > 2 ? 'es' : ''}`, value: -guessPenalty });
+    if (timePenalty > 0) lines.push({ label: 'Time penalty (slower = more lost)', value: -timePenalty });
+    else lines.push({ label: 'Fast finish — no time penalty', value: null });
+    if (noFilterBonus > 0) lines.push({ label: 'No filters used', value: noFilterBonus });
+    if (!legendsMode && score >= 89) {
+      lines.push({ label: 'Capped (Legends Mode required for 90+)', value: null });
+    }
   } else {
-    score = 5 + revealedCriteria.size * 10 + noFilterBonus;
-    score = Math.min(85, score);
+    const base = 5;
+    let fullCount = 0, closeCount = 0, farCount = 0;
+    for (const key of revealedCriteria) {
+      const q = revealedQuality[key] || 'full';
+      if (q === 'full') fullCount++;
+      else if (q === 'close') closeCount++;
+      else farCount++;
+    }
+    const revealedBonus = fullCount * 10 + closeCount * 2;
+    score = base + revealedBonus + noFilterBonus;
+    score = Math.round(Math.max(1, Math.min(60, score)));
+
+    lines.push({ label: 'Base (loss)', value: base });
+    if (fullCount > 0) lines.push({ label: `${fullCount} clue${fullCount !== 1 ? 's' : ''} exact`, value: fullCount * 10 });
+    if (closeCount > 0) lines.push({ label: `${closeCount} close (orange)`, value: closeCount * 2 });
+    if (farCount > 0) lines.push({ label: `${farCount} far (red) — no points`, value: null });
+    if (noFilterBonus > 0) lines.push({ label: 'No filters used', value: noFilterBonus });
+    lines.push({ label: 'Max score on loss', value: '(capped at 60)' });
   }
-  return Math.max(1, Math.min(100, Math.round(score)));
+
+  return { score, lines };
+}
+
+function showScoreBreakdown(won) {
+  const { score, lines } = getScoreBreakdown(won);
+  const content = $('#scoreBreakdownContent');
+  const overlay = $('#scoreBreakdownOverlay');
+  if (!content || !overlay) return;
+  content.innerHTML = `<p class="score-breakdown-total">Final: ${score}</p><ul class="score-breakdown-list">` +
+    lines.map(l => `<li>${escapeHtml(l.label)}${l.value !== null ? ` <span class="score-breakdown-value">${l.value > 0 ? '+' : ''}${l.value}</span>` : ''}</li>`).join('') +
+    '</ul>';
+  overlay.classList.remove('hidden');
+  overlay.addEventListener('click', function onOverlayClick(e) {
+    if (e.target === overlay) {
+      overlay.classList.add('hidden');
+      overlay.removeEventListener('click', onOverlayClick);
+    }
+  });
+  document.getElementById('scoreBreakdownClose')?.focus();
 }
 
 function win(isFirstTry, isLastPick) {
-  setStreak(getStreak() + 1);
+  setStreak(getStreak(currentSport) + 1, currentSport);
   updateStreakDisplay();
   stopTimer();
   elements.guessSelect().disabled = true;
@@ -507,12 +601,13 @@ function win(isFirstTry, isLastPick) {
   if (isFirstTry) msg = "First try! Unreal. 🎯";
   else if (isLastPick) msg = `Clutch gene! 🧬 Got 'em on the final pick. The answer was ${answer.name}.`;
   else msg = `Got 'em! The answer was ${answer.name}.`;
-  elements.message().innerHTML = `${msg} <span class="round-score">Score: ${score}</span><div class="answer-summary">${formatAnswerSummary()}</div>`;
+  const legendsBadge = legendsMode ? '<span class="legends-badge">Legends Mode</span>' : '';
+  elements.message().innerHTML = `${msg} ${legendsBadge} <span class="round-score score-clickable" role="button" tabindex="0" title="Click for breakdown">Score: ${score}</span><div class="answer-summary">${formatAnswerSummary()}</div>`;
   elements.message().className = 'message ' + (isFirstTry ? 'first-try' : 'win');
 }
 
 function lose() {
-  setStreak(0);
+  setStreak(0, currentSport);
   updateStreakDisplay();
   stopTimer();
   elements.guessSelect().disabled = true;
@@ -522,7 +617,7 @@ function lose() {
   const score = calculateScore(false);
   elements.gameOver().classList.remove('hidden');
   elements.gameOverTitle().textContent = 'Game over';
-  elements.gameOverText().innerHTML = `The answer was <strong>${answer.name}</strong><div class="answer-summary">${formatAnswerSummary()}</div><span class="round-score">Score: ${score}</span>`;
+  elements.gameOverText().innerHTML = `The answer was <strong>${answer.name}</strong><div class="answer-summary">${formatAnswerSummary()}</div><span class="round-score score-clickable" role="button" tabindex="0" title="Click for breakdown">Score: ${score}</span>`;
   elements.playAgainBtn().focus();
 }
 
@@ -632,6 +727,39 @@ function init() {
   elements.bonusClueBtn().addEventListener('click', unlockBonusClue);
   elements.playAgainBtn().addEventListener('click', startGame);
   elements.newGameBtn().addEventListener('click', startGame);
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.score-clickable')) return;
+    const inGameOver = elements.gameOver() && !elements.gameOver().classList.contains('hidden');
+    showScoreBreakdown(!inGameOver);
+  });
+  $('#scoreBreakdownClose')?.addEventListener('click', () => $('#scoreBreakdownOverlay')?.classList.add('hidden'));
+  document.addEventListener('keydown', (e) => {
+    if (e.isComposing) return;
+    if (e.target.closest('.score-clickable') && (e.key === 'Enter' || e.key === ' ')) {
+      e.preventDefault();
+      const inGameOver = elements.gameOver() && !elements.gameOver().classList.contains('hidden');
+      showScoreBreakdown(!inGameOver);
+      return;
+    }
+    const sel = elements.guessSelect();
+    if (!sel) return;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      if (sel.disabled) return;
+      const dir = e.key === 'ArrowDown' ? 1 : -1;
+      const nextIndex = Math.min(Math.max(sel.selectedIndex + dir, 0), sel.options.length - 1);
+      if (nextIndex !== sel.selectedIndex) {
+        sel.selectedIndex = nextIndex;
+        e.preventDefault();
+      }
+      return;
+    }
+    if (e.key === 'Enter') {
+      if (elements.guessBtn().disabled) return;
+      const active = document.activeElement;
+      if (active && active.tagName === 'BUTTON' && active !== elements.guessBtn()) return;
+      handleGuess();
+    }
+  });
 }
 
 init();

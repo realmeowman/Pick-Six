@@ -58,6 +58,12 @@ h1 {
   margin-top: 0.25rem;
 }
 
+.header-sport-icon {
+  font-size: 1.4rem;
+  margin-left: 0.25rem;
+  vertical-align: middle;
+}
+
 .header-meta {
   display: flex;
   flex-wrap: wrap;
@@ -306,6 +312,18 @@ button:active {
   font-style: italic;
 }
 
+.legends-badge {
+  display: inline-block;
+  margin-left: 0.25rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid var(--accent-warm);
+  color: var(--accent-warm);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
 .clue-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -345,18 +363,24 @@ button:active {
   font-size: 1rem;
   font-weight: 600;
   color: var(--success);
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  background: rgba(63, 185, 80, 0.08);
 }
 
 .clue-slot .clue-value.value-correct {
   color: var(--success);
+  background: rgba(63, 185, 80, 0.18);
 }
 
 .clue-slot .clue-value.value-close {
   color: var(--accent-warm);
+  background: rgba(240, 136, 62, 0.16);
 }
 
 .clue-slot .clue-value.value-far {
   color: var(--error);
+  background: rgba(248, 81, 73, 0.12);
 }
 
 .clue-slot .clue-value.hidden {
@@ -449,6 +473,65 @@ button:active {
   font-size: 0.95rem;
   border-radius: 6px;
   font-weight: 700;
+}
+
+.round-score.score-clickable {
+  cursor: pointer;
+}
+
+.round-score.score-clickable:hover {
+  filter: brightness(1.1);
+}
+
+.score-breakdown-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.score-breakdown-modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.5rem;
+  max-width: 320px;
+  width: 100%;
+}
+
+.score-breakdown-modal h3 {
+  font-size: 1.1rem;
+  margin-bottom: 1rem;
+}
+
+.score-breakdown-total {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--accent-warm);
+  margin-bottom: 0.75rem;
+}
+
+.score-breakdown-list {
+  list-style: none;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.score-breakdown-list li {
+  padding: 0.35rem 0;
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.score-breakdown-value {
+  color: var(--text);
+  font-weight: 600;
 }
 
 .answer-summary {

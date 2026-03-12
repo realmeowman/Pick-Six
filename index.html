@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <!-- Google tag (gtag.js) -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-Y5S0FFK1SW"></script>
-  <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-    gtag('js', new Date());
-    gtag('config', 'G-Y5S0FFK1SW');
-  </script>
+<head><!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-Y5S0FFK1SW"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-Y5S0FFK1SW');
+</script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Pick Six</title>
@@ -24,8 +24,8 @@
       <button type="button" class="sport-tab" data-sport="golf" role="tab" aria-selected="false">Golf</button>
     </nav>
     <header>
-      <h1>Pick Six</h1>
-      <p class="tagline">Match the mystery player using 6 clues. 6 guesses.</p>
+      <h1>Pick Six <span id="sportIcon" class="header-sport-icon" aria-hidden="true">⚾</span></h1>
+      <p class="tagline" id="tagline">Find the mystery player using 6 clues. 6 guesses.</p>
       <div class="header-meta">
         <p class="attempts" id="attempts">Attempts: <span id="attemptCount">5</span></p>
         <p class="timer" id="timer">0:00</p>
@@ -156,6 +156,14 @@
         <button id="playAgainBtn" type="button">Start new game</button>
       </section>
     </main>
+  </div>
+
+  <div class="score-breakdown-overlay hidden" id="scoreBreakdownOverlay" role="dialog" aria-labelledby="scoreBreakdownTitle" aria-modal="true">
+    <div class="score-breakdown-modal">
+      <h3 id="scoreBreakdownTitle">Score breakdown</h3>
+      <div id="scoreBreakdownContent"></div>
+      <button type="button" class="secondary small" id="scoreBreakdownClose">Close</button>
+    </div>
   </div>
 
   <script src="players-data.js"></script>
