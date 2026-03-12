@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Pick Six — MLB Edition</title>
+  <title>Pick Six</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -11,30 +11,48 @@
 </head>
 <body>
   <div class="app">
-    <div class="streak" id="streak" aria-label="Win streak"></div>
+    <nav class="sport-tabs" role="tablist">
+      <button type="button" class="sport-tab active" data-sport="mlb" role="tab" aria-selected="true">MLB</button>
+      <button type="button" class="sport-tab" data-sport="golf" role="tab" aria-selected="false">Golf</button>
+    </nav>
     <header>
       <h1>Pick Six</h1>
       <p class="tagline">Match the mystery player using 6 clues. 6 guesses.</p>
       <div class="header-meta">
         <p class="attempts" id="attempts">Attempts: <span id="attemptCount">5</span></p>
         <p class="timer" id="timer">0:00</p>
+        <p class="streak" id="streak" aria-label="Win streak"></p>
         <button id="newGameBtn" type="button" class="secondary small">Start new game</button>
       </div>
     </header>
 
     <main>
       <section class="guess-section">
-        <div class="filters">
-          <label for="leagueFilter">League</label>
-          <select id="leagueFilter">
-            <option value="">All</option>
-            <option value="AL">AL</option>
-            <option value="NL">NL</option>
-          </select>
-          <label for="teamFilter">Team</label>
-          <select id="teamFilter">
-            <option value="">All</option>
-          </select>
+        <div class="filters" id="filtersContainer">
+          <div class="filters-mlb" id="filtersMlb">
+            <button type="button" class="legends-mode secondary small" title="Disable filters for a harder challenge">Legends Mode</button>
+            <label for="leagueFilter">League</label>
+            <select id="leagueFilter">
+              <option value="">All</option>
+              <option value="AL">AL</option>
+              <option value="NL">NL</option>
+            </select>
+            <label for="teamFilter">Team</label>
+            <select id="teamFilter">
+              <option value="">All</option>
+            </select>
+          </div>
+          <div class="filters-golf hidden" id="filtersGolf">
+            <button type="button" class="legends-mode secondary small" title="Disable filters for a harder challenge">Legends Mode</button>
+            <label for="countryFilter">Country</label>
+            <select id="countryFilter">
+              <option value="">All</option>
+            </select>
+            <label for="sponsorFilter">Sponsor</label>
+            <select id="sponsorFilter">
+              <option value="">All</option>
+            </select>
+          </div>
         </div>
         <label for="guessSelect">Select a player</label>
         <div class="input-row">
@@ -54,36 +72,68 @@
 
       <section class="feedback-section">
         <div id="message" class="message"></div>
-        <div class="clue-grid" id="clueGrid">
+        <div class="clue-grid clue-grid-mlb" id="clueGridMlb">
           <div class="clue-slot" data-key="league">
             <span class="clue-label">League</span>
             <div class="clue-value hidden"><span class="value-text"></span></div>
-            <div class="clue-hidden"><span class="baseball-icon" aria-hidden="true">⚾</span></div>
+            <div class="clue-hidden"><span class="sport-icon" aria-hidden="true">⚾</span></div>
           </div>
           <div class="clue-slot" data-key="division">
             <span class="clue-label">Division</span>
             <div class="clue-value hidden"><span class="value-text"></span></div>
-            <div class="clue-hidden"><span class="baseball-icon" aria-hidden="true">⚾</span></div>
+            <div class="clue-hidden"><span class="sport-icon" aria-hidden="true">⚾</span></div>
           </div>
           <div class="clue-slot" data-key="team">
             <span class="clue-label">Team</span>
             <div class="clue-value hidden"><span class="value-text"></span></div>
-            <div class="clue-hidden"><span class="baseball-icon" aria-hidden="true">⚾</span></div>
+            <div class="clue-hidden"><span class="sport-icon" aria-hidden="true">⚾</span></div>
           </div>
           <div class="clue-slot" data-key="position">
             <span class="clue-label">Position</span>
             <div class="clue-value hidden"><span class="value-text"></span></div>
-            <div class="clue-hidden"><span class="baseball-icon" aria-hidden="true">⚾</span></div>
+            <div class="clue-hidden"><span class="sport-icon" aria-hidden="true">⚾</span></div>
           </div>
           <div class="clue-slot" data-key="age">
             <span class="clue-label">Age</span>
             <div class="clue-value hidden"><span class="value-text"></span></div>
-            <div class="clue-hidden"><span class="baseball-icon" aria-hidden="true">⚾</span></div>
+            <div class="clue-hidden"><span class="sport-icon" aria-hidden="true">⚾</span></div>
           </div>
           <div class="clue-slot" data-key="number">
             <span class="clue-label">Number</span>
             <div class="clue-value hidden"><span class="value-text"></span></div>
-            <div class="clue-hidden"><span class="baseball-icon" aria-hidden="true">⚾</span></div>
+            <div class="clue-hidden"><span class="sport-icon" aria-hidden="true">⚾</span></div>
+          </div>
+        </div>
+        <div class="clue-grid clue-grid-golf hidden" id="clueGridGolf">
+          <div class="clue-slot" data-key="country">
+            <span class="clue-label">Country</span>
+            <div class="clue-value hidden"><span class="value-text"></span></div>
+            <div class="clue-hidden"><span class="sport-icon" aria-hidden="true">⛳</span></div>
+          </div>
+          <div class="clue-slot" data-key="sponsor">
+            <span class="clue-label">Sponsor</span>
+            <div class="clue-value hidden"><span class="value-text"></span></div>
+            <div class="clue-hidden"><span class="sport-icon" aria-hidden="true">⛳</span></div>
+          </div>
+          <div class="clue-slot" data-key="age">
+            <span class="clue-label">Age</span>
+            <div class="clue-value hidden"><span class="value-text"></span></div>
+            <div class="clue-hidden"><span class="sport-icon" aria-hidden="true">⛳</span></div>
+          </div>
+          <div class="clue-slot" data-key="pgaWins">
+            <span class="clue-label">PGA Tour Wins</span>
+            <div class="clue-value hidden"><span class="value-text"></span></div>
+            <div class="clue-hidden"><span class="sport-icon" aria-hidden="true">⛳</span></div>
+          </div>
+          <div class="clue-slot" data-key="majorWins">
+            <span class="clue-label">Major Wins</span>
+            <div class="clue-value hidden"><span class="value-text"></span></div>
+            <div class="clue-hidden"><span class="sport-icon" aria-hidden="true">⛳</span></div>
+          </div>
+          <div class="clue-slot" data-key="worldRank">
+            <span class="clue-label">World Rank</span>
+            <div class="clue-value hidden"><span class="value-text"></span></div>
+            <div class="clue-hidden"><span class="sport-icon" aria-hidden="true">⛳</span></div>
           </div>
         </div>
         <div class="wrong-guesses" id="wrongGuesses">
@@ -101,6 +151,7 @@
   </div>
 
   <script src="players-data.js"></script>
+  <script src="golf-data.js"></script>
   <script src="game.js"></script>
 </body>
 </html>

@@ -35,11 +35,9 @@ body {
 }
 
 .streak {
-  position: absolute;
-  top: 0;
-  right: 0;
-  font-size: 1.5rem;
+  font-size: 1.25rem;
   line-height: 1;
+  color: var(--text-muted);
 }
 
 header {
@@ -118,6 +116,29 @@ button.small {
   align-items: center;
   gap: 0.75rem;
   margin-bottom: 1rem;
+}
+
+.legends-mode {
+  flex-shrink: 0;
+  height: 38px;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.legends-mode.active {
+  background: var(--accent-warm);
+  color: var(--bg);
+  border-color: var(--accent-warm);
+}
+
+.filters-mlb,
+.filters-golf {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
 }
 
 .filters label {
@@ -280,6 +301,11 @@ button:active {
   color: var(--error);
 }
 
+.message.snark {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
 .clue-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -348,9 +374,40 @@ button:active {
   display: none;
 }
 
-.clue-slot .baseball-icon {
+.clue-slot .sport-icon {
   font-size: 1.5rem;
   opacity: 0.6;
+}
+
+.sport-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  padding: 0.25rem;
+  background: var(--surface);
+  border-radius: 10px;
+  border: 1px solid var(--border);
+}
+
+.sport-tab {
+  flex: 1;
+  padding: 0.6rem 1rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  background: transparent;
+  color: var(--text-muted);
+  border-radius: 8px;
+  transition: background 0.2s, color 0.2s;
+}
+
+.sport-tab:hover {
+  color: var(--text);
+  background: var(--surface-light);
+}
+
+.sport-tab.active {
+  background: var(--accent);
+  color: var(--bg);
 }
 
 .clue-slot.checking {
