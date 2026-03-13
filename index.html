@@ -20,7 +20,9 @@
 <body>
   <div class="app">
     <nav class="sport-tabs" role="tablist">
-      <button type="button" class="sport-tab active" data-sport="mlb" role="tab" aria-selected="true">MLB</button>
+      <button type="button" class="sport-tab active" data-sport="nfl" role="tab" aria-selected="true">NFL</button>
+      <button type="button" class="sport-tab" data-sport="nba" role="tab" aria-selected="false">NBA</button>
+      <button type="button" class="sport-tab" data-sport="mlb" role="tab" aria-selected="false">MLB</button>
       <button type="button" class="sport-tab" data-sport="golf" role="tab" aria-selected="false">Golf</button>
     </nav>
     <header>
@@ -58,6 +60,28 @@
             </select>
             <label for="sponsorFilter">Sponsor</label>
             <select id="sponsorFilter">
+              <option value="">All</option>
+            </select>
+          </div>
+          <div class="filters-nba hidden" id="filtersNba">
+            <button type="button" class="legends-mode secondary small" title="Disable filters for a harder challenge">Legends Mode</button>
+            <label for="nbaConferenceFilter">Conference</label>
+            <select id="nbaConferenceFilter">
+              <option value="">All</option>
+            </select>
+            <label for="nbaTeamFilter">Team</label>
+            <select id="nbaTeamFilter">
+              <option value="">All</option>
+            </select>
+          </div>
+          <div class="filters-nfl hidden" id="filtersNfl">
+            <button type="button" class="legends-mode secondary small" title="Disable filters for a harder challenge">Legends Mode</button>
+            <label for="nflConferenceFilter">Conference</label>
+            <select id="nflConferenceFilter">
+              <option value="">All</option>
+            </select>
+            <label for="nflTeamFilter">Team</label>
+            <select id="nflTeamFilter">
               <option value="">All</option>
             </select>
           </div>
@@ -144,6 +168,70 @@
             <div class="clue-hidden"><span class="sport-icon" aria-hidden="true">⛳</span></div>
           </div>
         </div>
+        <div class="clue-grid clue-grid-nba hidden" id="clueGridNba">
+          <div class="clue-slot" data-key="league">
+            <span class="clue-label">Conference</span>
+            <div class="clue-value hidden"><span class="value-text"></span></div>
+            <div class="clue-hidden"><span class="sport-icon" aria-hidden="true">🏀</span></div>
+          </div>
+          <div class="clue-slot" data-key="division">
+            <span class="clue-label">Division</span>
+            <div class="clue-value hidden"><span class="value-text"></span></div>
+            <div class="clue-hidden"><span class="sport-icon" aria-hidden="true">🏀</span></div>
+          </div>
+          <div class="clue-slot" data-key="team">
+            <span class="clue-label">Team</span>
+            <div class="clue-value hidden"><span class="value-text"></span></div>
+            <div class="clue-hidden"><span class="sport-icon" aria-hidden="true">🏀</span></div>
+          </div>
+          <div class="clue-slot" data-key="position">
+            <span class="clue-label">Position</span>
+            <div class="clue-value hidden"><span class="value-text"></span></div>
+            <div class="clue-hidden"><span class="sport-icon" aria-hidden="true">🏀</span></div>
+          </div>
+          <div class="clue-slot" data-key="height">
+            <span class="clue-label">Height</span>
+            <div class="clue-value hidden"><span class="value-text"></span></div>
+            <div class="clue-hidden"><span class="sport-icon" aria-hidden="true">🏀</span></div>
+          </div>
+          <div class="clue-slot" data-key="rings">
+            <span class="clue-label">Rings</span>
+            <div class="clue-value hidden"><span class="value-text"></span></div>
+            <div class="clue-hidden"><span class="sport-icon" aria-hidden="true">🏀</span></div>
+          </div>
+        </div>
+        <div class="clue-grid clue-grid-nfl hidden" id="clueGridNfl">
+          <div class="clue-slot" data-key="league">
+            <span class="clue-label">Conference</span>
+            <div class="clue-value hidden"><span class="value-text"></span></div>
+            <div class="clue-hidden"><span class="sport-icon" aria-hidden="true">🏈</span></div>
+          </div>
+          <div class="clue-slot" data-key="division">
+            <span class="clue-label">Division</span>
+            <div class="clue-value hidden"><span class="value-text"></span></div>
+            <div class="clue-hidden"><span class="sport-icon" aria-hidden="true">🏈</span></div>
+          </div>
+          <div class="clue-slot" data-key="team">
+            <span class="clue-label">Team</span>
+            <div class="clue-value hidden"><span class="value-text"></span></div>
+            <div class="clue-hidden"><span class="sport-icon" aria-hidden="true">🏈</span></div>
+          </div>
+          <div class="clue-slot" data-key="position">
+            <span class="clue-label">Position</span>
+            <div class="clue-value hidden"><span class="value-text"></span></div>
+            <div class="clue-hidden"><span class="sport-icon" aria-hidden="true">🏈</span></div>
+          </div>
+          <div class="clue-slot" data-key="height">
+            <span class="clue-label">Height</span>
+            <div class="clue-value hidden"><span class="value-text"></span></div>
+            <div class="clue-hidden"><span class="sport-icon" aria-hidden="true">🏈</span></div>
+          </div>
+          <div class="clue-slot" data-key="rings">
+            <span class="clue-label">Rings</span>
+            <div class="clue-value hidden"><span class="value-text"></span></div>
+            <div class="clue-hidden"><span class="sport-icon" aria-hidden="true">🏈</span></div>
+          </div>
+        </div>
         <div class="wrong-guesses" id="wrongGuesses">
           <span class="wrong-guesses-label">Wrong guesses:</span>
           <span class="wrong-guesses-list" id="wrongGuessesList">—</span>
@@ -168,6 +256,8 @@
 
   <script src="players-data.js"></script>
   <script src="golf-data.js"></script>
+  <script src="nba-data.js"></script>
+  <script src="nfl-data.js"></script>
   <script src="game.js"></script>
 </body>
 </html>

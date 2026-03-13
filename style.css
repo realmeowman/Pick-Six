@@ -140,7 +140,9 @@ button.small {
 }
 
 .filters-mlb,
-.filters-golf {
+.filters-golf,
+.filters-nba,
+.filters-nfl {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
