@@ -1,3 +1,6 @@
+(function () {
+  'use strict';
+
 const MAX_ATTEMPTS = 6;
 
 const SPORTS = {
@@ -763,3 +766,4 @@ function init() {
 }
 
 init();
+})();
