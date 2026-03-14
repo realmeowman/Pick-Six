@@ -74,6 +74,10 @@ let currentRound = 1;
 const $ = (sel, ctx = document) => ctx.querySelector(sel);
 const $$ = (sel, ctx = document) => [...ctx.querySelectorAll(sel)];
 
+function isTouchDevice() {
+  return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+}
+
 let timerInterval = null;
 
 const elements = {
@@ -700,7 +704,7 @@ function startGame() {
   elements.gameOver().classList.add('hidden');
 
   updateRoundDisplay();
-  elements.guessSelect().focus();
+  if (!isTouchDevice()) elements.guessSelect().focus();
 }
 
 function formatBonusClue() {
@@ -891,7 +895,7 @@ function handleGuess() {
     elements.guessSelect().value = '';
     elements.guessSelect().disabled = false;
     elements.guessBtn().disabled = false;
-    elements.guessSelect().focus();
+    if (!isTouchDevice()) elements.guessSelect().focus();
 
     if (attemptsLeft <= 0) {
       lose();
