@@ -2,6 +2,7 @@
   'use strict';
 
 const MAX_ATTEMPTS = 6;
+const ROUND_SIZES = [25, 50, 75, 100];
 
 const SPORTS = {
   mlb: {
@@ -68,6 +69,7 @@ let guesses = [];
 let gameStartTime = null;
 let filtersUsedThisGame = false;
 let legendsMode = false;
+let currentRound = 1;
 
 const $ = (sel, ctx = document) => ctx.querySelector(sel);
 const $$ = (sel, ctx = document) => [...ctx.querySelectorAll(sel)];
@@ -108,18 +110,31 @@ const elements = {
   streak: () => $('#streak'),
   sportIcon: () => $('#sportIcon'),
   tagline: () => $('#tagline'),
+  roundLabel: () => $('#roundLabel'),
 };
 
 function getSportConfig() {
   return SPORTS[currentSport];
 }
 
-function getPlayers() {
-  if (currentSport === 'golf' && typeof GOLF_PLAYER_DATA !== 'undefined') return GOLF_PLAYER_DATA;
-  if (currentSport === 'mlb' && typeof PLAYER_DATA !== 'undefined') return PLAYER_DATA;
-  if (currentSport === 'nba' && typeof NBA_PLAYER_DATA !== 'undefined') return NBA_PLAYER_DATA;
-  if (currentSport === 'nfl' && typeof NFL_PLAYER_DATA !== 'undefined') return NFL_PLAYER_DATA;
+function getBasePlayers(sport = currentSport) {
+  if (sport === 'golf' && typeof GOLF_PLAYER_DATA !== 'undefined') return GOLF_PLAYER_DATA;
+  if (sport === 'mlb' && typeof PLAYER_DATA !== 'undefined') return PLAYER_DATA;
+  if (sport === 'nba' && typeof NBA_PLAYER_DATA !== 'undefined') return NBA_PLAYER_DATA;
+  if (sport === 'nfl' && typeof NFL_PLAYER_DATA !== 'undefined') return NFL_PLAYER_DATA;
   return [];
+}
+
+function getPlayersForRound(sport = currentSport, round = currentRound) {
+  const base = getBasePlayers(sport) || [];
+  if (!base.length) return [];
+  const clampedRound = Math.max(1, Math.min(round, ROUND_SIZES.length));
+  const size = Math.min(ROUND_SIZES[clampedRound - 1], base.length);
+  return base.slice(0, size);
+}
+
+function getPlayers() {
+  return getPlayersForRound();
 }
 
 function getClueGrid() {
@@ -187,6 +202,12 @@ function updateHeaderForSport() {
     const ariaLabels = { mlb: 'MLB mode', golf: 'Golf mode', nba: 'NBA mode', nfl: 'NFL mode' };
     elements.sportIcon().setAttribute('aria-label', ariaLabels[currentSport] || 'MLB mode');
   }
+}
+
+function updateRoundDisplay() {
+  const label = elements.roundLabel();
+  if (!label) return;
+  label.textContent = `Round ${currentRound}`;
 }
 
 function normalizeName(name) {
@@ -468,7 +489,7 @@ function processGuessReveals(guess, onComplete) {
     const isNumeric = cfg.numericKeys.includes(key);
     const guessVal = isNumeric ? String(guess[key]) : guess[key];
     const ansVal = getAnswerVal(key);
-    const match = guessVal === ansVal;
+    const match = isNumeric ? (Number(guess[key]) === Number(answer[key])) : (guessVal === ansVal);
     if (match) matchCount++;
     if (isNumeric || match) anySlotUpdated = true;
 
@@ -489,12 +510,43 @@ function processGuessReveals(guess, onComplete) {
   next();
 }
 
+const FULL_RUN_MSGS = [
+  n => `From 25 to 100 — you ran the whole gauntlet. All four rounds, no mercy. 🏆 The answer was ${n}.`,
+  n => `You cleared the gauntlet. Every round. The mystery players never stood a chance. The answer was ${n}.`,
+  n => `Four rounds, four W's. You didn't just play — you dominated. 🏆 The answer was ${n}.`,
+  n => `25, 50, 75, 100 … you crushed 'em all. Full run complete. The answer was ${n}.`,
+  n => `Who hurt you? You just breezed through all four rounds. Legendary. The answer was ${n}.`,
+];
+
+const FIRST_TRY_MSGS = [
+  "First try! Unreal. 🎯",
+  "One guess. That's all you needed. 🎯",
+  "First try?! Who does that?!",
+  "One pick. Case closed. 🎯",
+  "First guess, only guess. Legend.",
+];
+
+const CLUTCH_MSGS = [
+  (n) => `Clutch gene! 🧬 Got 'em on the final pick. The answer was ${n}.`,
+  (n) => `Last guess. Last chance. Nailed it. The answer was ${n}.`,
+  (n) => `Down to the wire — and you got 'em. The answer was ${n}.`,
+  (n) => `Final pick, final answer. Clutch. 🧬 The answer was ${n}.`,
+  (n) => `Sixth guess hero. You pulled it off. The answer was ${n}.`,
+];
+
+const GOT_EM_MSGS = [
+  (n) => `Got 'em! The answer was ${n}.`,
+  (n) => `That's the one. The answer was ${n}.`,
+  (n) => `Nailed it. The answer was ${n}.`,
+  (n) => `There we go. The answer was ${n}.`,
+  (n) => `Bingo. The answer was ${n}.`,
+];
+
 const NOTHING_REVEALED_SNARK = [
   "Zero for six. That guess did you no favors.",
   "Nothing. The slots didn't even budge. Try again.",
   "Swing and a miss — literally nothing.",
   "That burned a guess and revealed … nothing. Ouch.",
-  "Zero hits and no new clues. Maybe the next one?",
   "Congrats, you just used a guess to learn nothing.",
 ];
 
@@ -503,9 +555,20 @@ const LITTLE_PROGRESS_SNARK = [
   "No matches — but at least you got a little intel.",
   "Nothing hit, but the clues inched forward.",
   "That one didn't narrow it down much.",
-  "No direct hits. Use what you saw and try again.",
   "Tough break. Small steps.",
 ];
+
+const SOME_MATCHES_MSGS = [
+  (name) => `Nope! But ${name} revealed:`,
+  (name) => `Wrong pick. ${name} did spill some intel though:`,
+  (name) => `Miss. At least ${name} gave something away:`,
+  (name) => `Not them — but ${name} dropped a few clues:`,
+  (name) => `No dice. ${name} did help narrow it down:`,
+];
+
+function pick(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
 
 function formatTime(ms) {
   const s = Math.floor(ms / 1000);
@@ -636,6 +699,7 @@ function startGame() {
   elements.timer().textContent = '—';
   elements.gameOver().classList.add('hidden');
 
+  updateRoundDisplay();
   elements.guessSelect().focus();
 }
 
@@ -741,12 +805,23 @@ function win(isFirstTry, isLastPick) {
 
   const score = calculateScore(true);
   let msg;
-  if (isFirstTry) msg = "First try! Unreal. 🎯";
-  else if (isLastPick) msg = `Clutch gene! 🧬 Got 'em on the final pick. The answer was ${answer.name}.`;
-  else msg = `Got 'em! The answer was ${answer.name}.`;
+  if (currentRound === ROUND_SIZES.length) {
+    msg = pick(FULL_RUN_MSGS)(answer.name);
+  } else if (isFirstTry) {
+    msg = pick(FIRST_TRY_MSGS);
+  } else if (isLastPick) {
+    msg = pick(CLUTCH_MSGS)(answer.name);
+  } else {
+    msg = pick(GOT_EM_MSGS)(answer.name);
+  }
   const legendsBadge = legendsMode ? '<span class="legends-badge">Legends Mode</span>' : '';
-  elements.message().innerHTML = `${msg} ${legendsBadge} <span class="round-score score-clickable" role="button" tabindex="0" title="Click for breakdown">Score: ${score}</span><div class="answer-summary">${formatAnswerSummary()}</div>`;
+  const nextRoundLabel = currentRound < ROUND_SIZES.length ? 'Next round' : 'Play again';
+  elements.message().innerHTML = `${msg} ${legendsBadge} <span class="round-score score-clickable" role="button" tabindex="0" title="Click for breakdown">Score: ${score}</span> <button type="button" id="nextRoundBtn" class="secondary small">${escapeHtml(nextRoundLabel)}</button><div class="answer-summary">${formatAnswerSummary()}</div>`;
   elements.message().className = 'message ' + (isFirstTry ? 'first-try' : 'win');
+  $('#nextRoundBtn')?.addEventListener('click', () => {
+    if (currentRound < ROUND_SIZES.length) currentRound++;
+    startGame();
+  });
 }
 
 function lose() {
@@ -825,11 +900,11 @@ function handleGuess() {
     let summaryText;
     const zeroMatches = matchCount === 0;
     if (zeroMatches && !anySlotUpdated) {
-      summaryText = NOTHING_REVEALED_SNARK[Math.floor(Math.random() * NOTHING_REVEALED_SNARK.length)];
+      summaryText = pick(NOTHING_REVEALED_SNARK);
     } else if (zeroMatches) {
-      summaryText = LITTLE_PROGRESS_SNARK[Math.floor(Math.random() * LITTLE_PROGRESS_SNARK.length)];
+      summaryText = pick(LITTLE_PROGRESS_SNARK);
     } else {
-      summaryText = `Nope! But ${guessed.name} revealed:`;
+      summaryText = pick(SOME_MATCHES_MSGS)(guessed.name);
     }
     const useSnarkClass = zeroMatches;
     setTimeout(() => {
@@ -842,6 +917,7 @@ function handleGuess() {
 function switchSport(sport) {
   if (sport === currentSport) return;
   currentSport = sport;
+  currentRound = 1;
   startGame();
 }
 
@@ -882,8 +958,14 @@ function init() {
     if (e.key === 'Enter') handleGuess();
   });
   elements.bonusClueBtn().addEventListener('click', unlockBonusClue);
-  elements.playAgainBtn().addEventListener('click', startGame);
-  elements.newGameBtn().addEventListener('click', startGame);
+  elements.playAgainBtn().addEventListener('click', () => {
+    if (currentRound < ROUND_SIZES.length) currentRound++;
+    startGame();
+  });
+  elements.newGameBtn().addEventListener('click', () => {
+    currentRound = 1;
+    startGame();
+  });
   document.addEventListener('click', (e) => {
     if (!e.target.closest('.score-clickable')) return;
     const inGameOver = elements.gameOver() && !elements.gameOver().classList.contains('hidden');
