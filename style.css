@@ -125,29 +125,27 @@ button.small {
   margin-bottom: 1rem;
 }
 
-.legends-mode {
-  flex-shrink: 0;
-  height: 38px;
-  box-sizing: border-box;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.legends-mode.active {
-  background: var(--accent-warm);
-  color: var(--bg);
-  border-color: var(--accent-warm);
-}
-
 .filters-mlb,
 .filters-golf,
 .filters-nba,
 .filters-nfl {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   gap: 0.75rem;
+  width: 100%;
+}
+
+.filter-pair {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.filter-pair select {
+  flex: 1;
+  min-width: 0;
 }
 
 .filters label {
@@ -490,6 +488,66 @@ button:active {
 
 .round-score.score-clickable:hover {
   filter: brightness(1.1);
+}
+
+.about-section {
+  margin-top: 2rem;
+  padding: 1.25rem 1.5rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 0.95rem;
+  color: var(--text-muted);
+}
+
+.about-section h2 {
+  font-size: 1.1rem;
+  margin-bottom: 0.5rem;
+}
+
+.about-section ul {
+  margin-left: 1.25rem;
+  margin-top: 0.5rem;
+  display: grid;
+  gap: 0.3rem;
+}
+
+.about-section li {
+  list-style: disc;
+}
+
+.help-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 40;
+}
+
+.help-overlay.hidden {
+  display: none;
+}
+
+.help-modal {
+  max-width: 420px;
+  width: calc(100% - 2.5rem);
+  background: var(--surface);
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  padding: 1.5rem;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+}
+
+.help-modal h2 {
+  margin-bottom: 0.75rem;
+}
+
+.help-modal p {
+  margin-bottom: 0.75rem;
+  font-size: 0.95rem;
+  color: var(--text-muted);
 }
 
 .score-breakdown-overlay {

@@ -11,12 +11,32 @@
 </script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Pick Six</title>
+  <title>Pick Six – You Think You Know Ball? Prove It.</title>
+  <meta name="description" content="Pick Six is the sports guessing game that exposes fake NFL, NBA, MLB, and golf sickos. Six clues, six guesses, four rounds from easy layups to “how did you even know that guy?”">
+  <meta property="og:title" content="Pick Six – You Think You Know Ball? Prove It.">
+  <meta property="og:description" content="Pick Six is the sports guessing game that exposes fake NFL, NBA, MLB, and golf sickos. Six clues, six guesses, four rounds from easy layups to “how did you even know that guy?”">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://picksix.lol">
+  <meta property="og:image" content="https://picksix.lol/og-image.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Pick Six – You Think You Know Ball? Prove It.">
+  <meta name="twitter:description" content="Pick Six is the sports guessing game that exposes fake NFL, NBA, MLB, and golf sickos. Six clues, six guesses, four rounds from easy layups to “how did you even know that guy?”">
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Game",
+    "name": "Pick Six",
+    "url": "https://picksix.lol",
+    "description": "Pick Six is the sports guessing game that exposes fake NFL, NBA, MLB, and golf sickos. Six clues, six guesses, four rounds from easy layups to “how did you even know that guy?”.",
+    "genre": "Sports guessing game",
+    "inLanguage": "en"
+  }
+  </script>
 </head>
 <body>
   <div class="app">
@@ -34,6 +54,7 @@
         <p class="attempts" id="attempts">Attempts: <span id="attemptCount">5</span></p>
         <p class="timer" id="timer">0:00</p>
         <p class="streak" id="streak" aria-label="Win streak"></p>
+        <button id="helpBtn" type="button" class="secondary small" aria-haspopup="dialog" aria-controls="helpPanel">?</button>
         <button id="newGameBtn" type="button" class="secondary small">Start new game</button>
       </div>
     </header>
@@ -42,50 +63,62 @@
       <section class="guess-section">
         <div class="filters" id="filtersContainer">
           <div class="filters-mlb" id="filtersMlb">
-            <button type="button" class="legends-mode secondary small" title="Disable filters for a harder challenge">Legends Mode</button>
-            <label for="leagueFilter">League</label>
-            <select id="leagueFilter">
-              <option value="">All</option>
-              <option value="AL">AL</option>
-              <option value="NL">NL</option>
-            </select>
-            <label for="teamFilter">Team</label>
-            <select id="teamFilter">
-              <option value="">All</option>
-            </select>
+            <div class="filter-pair">
+              <label for="leagueFilter">League</label>
+              <select id="leagueFilter">
+                <option value="">All</option>
+                <option value="AL">AL</option>
+                <option value="NL">NL</option>
+              </select>
+            </div>
+            <div class="filter-pair">
+              <label for="teamFilter">Team</label>
+              <select id="teamFilter">
+                <option value="">All</option>
+              </select>
+            </div>
           </div>
           <div class="filters-golf hidden" id="filtersGolf">
-            <button type="button" class="legends-mode secondary small" title="Disable filters for a harder challenge">Legends Mode</button>
-            <label for="countryFilter">Country</label>
-            <select id="countryFilter">
-              <option value="">All</option>
-            </select>
-            <label for="sponsorFilter">Sponsor</label>
-            <select id="sponsorFilter">
-              <option value="">All</option>
-            </select>
+            <div class="filter-pair">
+              <label for="countryFilter">Country</label>
+              <select id="countryFilter">
+                <option value="">All</option>
+              </select>
+            </div>
+            <div class="filter-pair">
+              <label for="sponsorFilter">Sponsor</label>
+              <select id="sponsorFilter">
+                <option value="">All</option>
+              </select>
+            </div>
           </div>
           <div class="filters-nba hidden" id="filtersNba">
-            <button type="button" class="legends-mode secondary small" title="Disable filters for a harder challenge">Legends Mode</button>
-            <label for="nbaConferenceFilter">Conference</label>
-            <select id="nbaConferenceFilter">
-              <option value="">All</option>
-            </select>
-            <label for="nbaTeamFilter">Team</label>
-            <select id="nbaTeamFilter">
-              <option value="">All</option>
-            </select>
+            <div class="filter-pair">
+              <label for="nbaConferenceFilter">Conference</label>
+              <select id="nbaConferenceFilter">
+                <option value="">All</option>
+              </select>
+            </div>
+            <div class="filter-pair">
+              <label for="nbaTeamFilter">Team</label>
+              <select id="nbaTeamFilter">
+                <option value="">All</option>
+              </select>
+            </div>
           </div>
           <div class="filters-nfl hidden" id="filtersNfl">
-            <button type="button" class="legends-mode secondary small" title="Disable filters for a harder challenge">Legends Mode</button>
-            <label for="nflConferenceFilter">Conference</label>
-            <select id="nflConferenceFilter">
-              <option value="">All</option>
-            </select>
-            <label for="nflTeamFilter">Team</label>
-            <select id="nflTeamFilter">
-              <option value="">All</option>
-            </select>
+            <div class="filter-pair">
+              <label for="nflConferenceFilter">Conference</label>
+              <select id="nflConferenceFilter">
+                <option value="">All</option>
+              </select>
+            </div>
+            <div class="filter-pair">
+              <label for="nflTeamFilter">Team</label>
+              <select id="nflTeamFilter">
+                <option value="">All</option>
+              </select>
+            </div>
           </div>
         </div>
         <label for="guessSelect">Select a player</label>
@@ -256,10 +289,26 @@
     </div>
   </div>
 
-  <script src="players-data.js"></script>
-  <script src="golf-data.js"></script>
-  <script src="nba-data.js"></script>
-  <script src="nfl-data.js"></script>
-  <script src="game.js"></script>
+  <div class="help-overlay hidden" id="helpPanel" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+    <div class="help-modal">
+      <h2 id="helpTitle">How Pick Six works</h2>
+      <p>
+        Each game picks one mystery player from the current sport. You have six guesses to find them using the clues you unlock along the way.
+      </p>
+      <p>
+        Make a guess and we’ll light up how close you are on league/conference, division, team, position, and the numeric stats – age, height, jersey number, or rings depending on the sport.
+      </p>
+      <p>
+        Clear four rounds in a row to go from stars to deep‑cut role players and golf nerd favorites.
+      </p>
+      <button type="button" class="secondary small" id="helpCloseBtn">Got it</button>
+    </div>
+  </div>
+
+  <script src="players-data.js" defer></script>
+  <script src="golf-data.js" defer></script>
+  <script src="nba-data.js" defer></script>
+  <script src="nfl-data.js" defer></script>
+  <script src="game.js" defer></script>
 </body>
 </html>

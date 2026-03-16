@@ -610,15 +610,6 @@ function showSportUI() {
   elements.filtersGolf().classList.toggle('hidden', currentSport !== 'golf');
   elements.filtersNba().classList.toggle('hidden', currentSport !== 'nba');
   elements.filtersNfl().classList.toggle('hidden', currentSport !== 'nfl');
-  elements.leagueFilter().disabled = legendsMode;
-  elements.teamFilter().disabled = legendsMode;
-  elements.countryFilter().disabled = legendsMode;
-  elements.sponsorFilter().disabled = legendsMode;
-  elements.nbaConferenceFilter().disabled = legendsMode;
-  elements.nbaTeamFilter().disabled = legendsMode;
-  elements.nflConferenceFilter().disabled = legendsMode;
-  elements.nflTeamFilter().disabled = legendsMode;
-  $$('.legends-mode').forEach(btn => btn.classList.toggle('active', legendsMode));
   elements.clueGridMlb().classList.toggle('hidden', currentSport !== 'mlb');
   elements.clueGridGolf().classList.toggle('hidden', currentSport !== 'golf');
   elements.clueGridNba().classList.toggle('hidden', currentSport !== 'nba');
@@ -628,28 +619,6 @@ function showSportUI() {
     tab.classList.toggle('active', tab.dataset.sport === currentSport);
     tab.setAttribute('aria-selected', tab.dataset.sport === currentSport);
   });
-}
-
-function toggleLegendsMode() {
-  const cfg = getSportConfig();
-  if (!cfg.hasFilters) return;
-  legendsMode = !legendsMode;
-  if (legendsMode) {
-    elements.leagueFilter().value = '';
-    elements.teamFilter().value = '';
-    elements.countryFilter().value = '';
-    elements.sponsorFilter().value = '';
-    elements.nbaConferenceFilter().value = '';
-    elements.nbaTeamFilter().value = '';
-    elements.nflConferenceFilter().value = '';
-    elements.nflTeamFilter().value = '';
-    populateTeamFilter();
-    populateGolfFilters();
-    populateNbaFilters();
-    populateNflFilters();
-  }
-  showSportUI();
-  populateSelect();
 }
 
 function startGame() {
@@ -939,7 +908,6 @@ function init() {
   $$('.sport-tab').forEach(tab => {
     tab.addEventListener('click', () => switchSport(tab.dataset.sport));
   });
-  $$('.legends-mode').forEach(btn => btn.addEventListener('click', toggleLegendsMode));
   elements.leagueFilter().addEventListener('change', () => {
     populateTeamFilter();
     populateSelect();
@@ -969,6 +937,16 @@ function init() {
   elements.newGameBtn().addEventListener('click', () => {
     currentRound = 1;
     startGame();
+  });
+  $('#helpBtn')?.addEventListener('click', () => {
+    const panel = $('#helpPanel');
+    if (!panel) return;
+    panel.classList.remove('hidden');
+    $('#helpCloseBtn')?.focus();
+  });
+  $('#helpCloseBtn')?.addEventListener('click', () => {
+    $('#helpPanel')?.classList.add('hidden');
+    $('#helpBtn')?.focus();
   });
   document.addEventListener('click', (e) => {
     if (!e.target.closest('.score-clickable')) return;
