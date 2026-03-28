@@ -128,7 +128,8 @@ button.small {
 .filters-mlb,
 .filters-golf,
 .filters-nba,
-.filters-nfl {
+.filters-nfl,
+.filters-nhl {
   display: flex;
   align-items: center;
   gap: 0.75rem;
@@ -655,6 +656,98 @@ button:active {
 
 #playAgainBtn:hover {
   background: #6eb4ff;
+}
+
+.coop-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 1rem;
+}
+
+.coop-modal-overlay.hidden {
+  display: none;
+}
+
+.coop-modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.5rem;
+  max-width: 420px;
+  width: 100%;
+}
+
+.coop-modal h2 {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.5rem;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.75rem;
+}
+
+.coop-modal p {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  margin-bottom: 1rem;
+  line-height: 1.5;
+}
+
+.coop-modal-link-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.coop-modal .coop-link-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.coop-modal .primary {
+  width: 100%;
+  background: var(--accent);
+  color: var(--bg);
+}
+
+.coop-modal .primary:hover:not(:disabled) {
+  background: #6eb4ff;
+}
+
+.coop-modal .primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.coop-banner {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  width: 100%;
+}
+
+.coop-banner-msg {
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  margin-bottom: 0.75rem;
+}
+
+.coop-link-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.coop-link-input {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.8rem;
+  padding: 0.5rem 0.75rem;
 }
 
 .hidden {

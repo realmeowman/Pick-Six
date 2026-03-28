@@ -2,7 +2,7 @@
   'use strict';
 
 const MAX_ATTEMPTS = 6;
-const ROUND_SIZES = [25, 50, 75, 100];
+const ROUND_SIZES = [25, 50, 75, 100, 125, 150];
 
 const SPORTS = {
   mlb: {
@@ -55,6 +55,38 @@ const SPORTS = {
     closeThreshold: { height: 2, rings: 1 },
     hasFilters: true,
   },
+  nhl: {
+    key: 'nhl',
+    criteriaKeys: ['league', 'division', 'team', 'position', 'height', 'rings'],
+    labels: {
+      league: 'Conference',
+      division: 'Division',
+      team: 'Team',
+      position: 'Position',
+      height: 'Height',
+      rings: 'Cups',
+    },
+    numericKeys: ['height', 'rings'],
+    lowerIsBetter: {},
+    closeThreshold: { height: 2, rings: 1 },
+    hasFilters: true,
+  },
+  all: {
+    key: 'all',
+    criteriaKeys: ['sport', 'team', 'position', 'height', 'titles', 'age'],
+    labels: {
+      sport: 'Sport',
+      team: 'Team/Country',
+      position: 'Position',
+      height: 'Height',
+      titles: 'Titles',
+      age: 'Age',
+    },
+    numericKeys: ['height', 'titles', 'age'],
+    lowerIsBetter: {},
+    closeThreshold: { height: 2, titles: 1, age: 3 },
+    hasFilters: true,
+  },
 };
 
 let currentSport = 'mlb';
@@ -70,6 +102,8 @@ let gameStartTime = null;
 let filtersUsedThisGame = false;
 let legendsMode = false;
 let currentRound = 1;
+let coopMode = false;
+let coopSeed = null;
 
 const $ = (sel, ctx = document) => ctx.querySelector(sel);
 const $$ = (sel, ctx = document) => [...ctx.querySelectorAll(sel)];
@@ -90,6 +124,7 @@ const elements = {
   clueGridGolf: () => $('#clueGridGolf'),
   clueGridNba: () => $('#clueGridNba'),
   clueGridNfl: () => $('#clueGridNfl'),
+  clueGridNhl: () => $('#clueGridNhl'),
   attempts: () => $('#attemptCount'),
   timer: () => $('#timer'),
   wrongGuessesList: () => $('#wrongGuessesList'),
@@ -103,10 +138,15 @@ const elements = {
   filtersGolf: () => $('#filtersGolf'),
   filtersNba: () => $('#filtersNba'),
   filtersNfl: () => $('#filtersNfl'),
+  filtersNhl: () => $('#filtersNhl'),
+  filtersAll: () => $('#filtersAll'),
+  allSportFilter: () => $('#allSportFilter'),
   nbaConferenceFilter: () => $('#nbaConferenceFilter'),
   nbaTeamFilter: () => $('#nbaTeamFilter'),
   nflConferenceFilter: () => $('#nflConferenceFilter'),
   nflTeamFilter: () => $('#nflTeamFilter'),
+  nhlConferenceFilter: () => $('#nhlConferenceFilter'),
+  nhlTeamFilter: () => $('#nhlTeamFilter'),
   gameOver: () => $('#gameOver'),
   gameOverTitle: () => $('#gameOverTitle'),
   gameOverText: () => $('#gameOverText'),
@@ -115,21 +155,383 @@ const elements = {
   sportIcon: () => $('#sportIcon'),
   tagline: () => $('#tagline'),
   roundLabel: () => $('#roundLabel'),
+  coopBanner: () => $('#coopBanner'),
+  coopLinkInput: () => $('#coopLinkInput'),
+  coopCopyBtn: () => $('#coopCopyBtn'),
+  coopExitBtn: () => $('#coopExitBtn'),
+  playWithFriendBtn: () => $('#playWithFriendBtn'),
+  coopGoFirstModal: () => $('#coopGoFirstModal'),
+  coopGoFirstBtn: () => $('#coopGoFirstBtn'),
+  coopShareModal: () => $('#coopShareModal'),
+  coopShareLinkInput: () => $('#coopShareLinkInput'),
+  coopShareCopyBtn: () => $('#coopShareCopyBtn'),
+  coopShareDoneBtn: () => $('#coopShareDoneBtn'),
+  clueGridAll: () => $('#clueGridAll'),
 };
+
+function seededRandom(seed) {
+  let s = seed;
+  return function () {
+    s = (s * 1103515245 + 12345) & 0x7fffffff;
+    return s / 0x7fffffff;
+  };
+}
+
+function getAnswerFromSeed(playersList, seed) {
+  if (!playersList.length) return null;
+  const rng = seededRandom(seed);
+  const idx = Math.floor(rng() * playersList.length);
+  return playersList[idx];
+}
+
+function encodeCoopState() {
+  const state = {
+    s: currentSport,
+    r: currentRound,
+    e: coopSeed,
+    g: guesses,
+    rc: [...revealedCriteria],
+    rq: { ...revealedQuality },
+    b: bonusClueUnlocked,
+  };
+  const json = JSON.stringify(state);
+  return btoa(String.fromCharCode(...new TextEncoder().encode(json)));
+}
+
+function decodeCoopState(hash) {
+  try {
+    const json = new TextDecoder().decode(
+      Uint8Array.from(atob(hash), c => c.charCodeAt(0))
+    );
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
+}
+
+function getCoopLink() {
+  const state = encodeCoopState();
+  return `${location.origin}${location.pathname}#coop-${state}`;
+}
+
+function updateCoopLink() {
+  const input = elements.coopLinkInput();
+  if (input) input.value = getCoopLink();
+}
+
+function showCoopBanner(message) {
+  const banner = elements.coopBanner();
+  if (!banner) return;
+  banner.classList.remove('hidden');
+  const msgEl = banner.querySelector('.coop-banner-msg');
+  if (msgEl) msgEl.textContent = message;
+  updateCoopLink();
+}
+
+function hideCoopBanner() {
+  const banner = elements.coopBanner();
+  if (banner) banner.classList.add('hidden');
+}
+
+function showCoopGoFirstModal() {
+  elements.coopGoFirstModal()?.classList.remove('hidden');
+  elements.coopGoFirstBtn()?.focus();
+}
+
+function hideCoopGoFirstModal() {
+  elements.coopGoFirstModal()?.classList.add('hidden');
+}
+
+function showCoopShareModal() {
+  const modal = elements.coopShareModal();
+  const input = elements.coopShareLinkInput();
+  const doneBtn = elements.coopShareDoneBtn();
+  const copyBtn = elements.coopShareCopyBtn();
+  if (!modal) return;
+  if (input) input.value = getCoopLink();
+  if (doneBtn) doneBtn.disabled = true;
+  if (copyBtn) copyBtn.textContent = 'Copy link';
+  modal.classList.remove('hidden');
+  copyBtn?.focus();
+}
+
+function hideCoopShareModal() {
+  elements.coopShareModal()?.classList.add('hidden');
+}
+
+async function copyCoopLink() {
+  const link = getCoopLink();
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(link);
+      const btn = elements.coopCopyBtn();
+      if (btn) {
+        btn.textContent = 'Copied!';
+        btn.disabled = true;
+        setTimeout(() => { btn.textContent = 'Copy link'; btn.disabled = false; }, 2000);
+      }
+    }
+  } catch (_) {}
+}
+
+function applyCoopState(state) {
+  currentSport = state.s || currentSport;
+  currentRound = state.r || 1;
+  coopSeed = state.e;
+  guesses = state.g || [];
+  revealedCriteria = new Set(state.rc || []);
+  revealedQuality = state.rq || {};
+  exactRevealedCriteria = new Set(
+    Object.keys(revealedQuality).filter(k => revealedQuality[k] === 'full')
+  );
+  bonusClueUnlocked = state.b || false;
+  attemptsLeft = MAX_ATTEMPTS - guesses.length;
+  coopMode = true;
+
+  players = getPlayersForRound(currentSport, currentRound);
+  answer = coopSeed != null ? getAnswerFromSeed(players, coopSeed) : null;
+  if (!answer && players.length) answer = players[0];
+}
+
+function startCoopGame() {
+  if (timerInterval) {
+    clearInterval(timerInterval);
+    timerInterval = null;
+  }
+  coopMode = true;
+  coopSeed = Math.floor(Math.random() * 0x7fffffff);
+  currentSport = currentSport || 'nfl';
+  currentRound = currentRound || 1;
+  players = getPlayersForRound(currentSport, currentRound);
+  answer = getAnswerFromSeed(players, coopSeed);
+  attemptsLeft = MAX_ATTEMPTS;
+  bonusClueUnlocked = false;
+  guesses = [];
+  revealedCriteria.clear();
+  exactRevealedCriteria.clear();
+  revealedQuality = {};
+  gameStartTime = null;
+  filtersUsedThisGame = false;
+
+  if (currentSport === 'mlb') {
+    elements.leagueFilter().value = '';
+    elements.teamFilter().value = '';
+    populateTeamFilter();
+  } else if (currentSport === 'golf') {
+    elements.countryFilter().value = '';
+    elements.sponsorFilter().value = '';
+    populateGolfFilters();
+  } else if (currentSport === 'nba') {
+    elements.nbaConferenceFilter().value = '';
+    elements.nbaTeamFilter().value = '';
+    populateNbaFilters();
+  } else if (currentSport === 'nfl') {
+    elements.nflConferenceFilter().value = '';
+    elements.nflTeamFilter().value = '';
+    populateNflFilters();
+  }
+
+  showSportUI();
+  populateSelect();
+  resetClueSlots();
+  syncClueSlotsFromRevealed();
+  updateWrongGuesses();
+
+  elements.guessSelect().value = '';
+  elements.guessSelect().disabled = false;
+  elements.guessBtn().disabled = false;
+  elements.bonusClueBtn().disabled = bonusClueUnlocked;
+  elements.bonusClue().classList.toggle('hidden', !bonusClueUnlocked);
+  elements.bonusClue().classList.toggle('revealed', bonusClueUnlocked);
+  elements.bonusClue().textContent = bonusClueUnlocked ? formatBonusClue() : '';
+  elements.message().textContent = "Your turn! Make your guess below.";
+  elements.message().className = 'message';
+  elements.attempts().textContent = attemptsLeft;
+  elements.timer().textContent = '—';
+  elements.gameOver().classList.add('hidden');
+
+  updateRoundDisplay();
+  hideCoopBanner();
+  history.replaceState(null, '', getCoopLink());
+  if (!isTouchDevice()) elements.guessSelect().focus();
+}
+
+function syncClueSlotsFromRevealed() {
+  const cfg = getSportConfig();
+  const grid = getClueGrid();
+  cfg.criteriaKeys.forEach(key => {
+    if (!revealedCriteria.has(key)) return;
+    const slot = $(`[data-key="${key}"]`, grid);
+    if (!slot) return;
+    const valEl = slot.querySelector('.clue-value');
+    const hiddenEl = slot.querySelector('.clue-hidden');
+    if (!valEl || !hiddenEl) return;
+    const q = revealedQuality[key];
+    let text = q === 'full' ? getAnswerVal(key) : '';
+    const cfg2 = getSportConfig();
+    if (cfg2.numericKeys.includes(key) && q && q !== 'full') {
+      const lastGuess = guesses.length ? findPlayer(guesses[guesses.length - 1]) : null;
+      if (lastGuess) {
+        const res = getNumericDisplay(key, lastGuess[key], answer[key]);
+        text = res.text;
+      }
+    }
+    valEl.querySelector('.value-text').textContent = text;
+    valEl.classList.remove('hidden', 'value-correct', 'value-close', 'value-far');
+    if (q === 'close') valEl.classList.add('value-close');
+    else if (q === 'far') valEl.classList.add('value-far');
+    else if (q === 'full') valEl.classList.add('value-correct');
+    valEl.classList.remove('hidden');
+    hiddenEl.classList.add('hidden');
+  });
+}
+
+function loadCoopFromHash() {
+  const hash = location.hash.slice(1);
+  if (!hash.startsWith('coop-')) return false;
+  const state = decodeCoopState(hash.slice(5));
+  if (!state || state.e == null) return false;
+  applyCoopState(state);
+  showSportUI();
+  populateSelect();
+  syncClueSlotsFromRevealed();
+  updateWrongGuesses();
+
+  elements.guessSelect().value = '';
+  elements.guessSelect().disabled = false;
+  elements.guessBtn().disabled = false;
+  elements.bonusClueBtn().disabled = bonusClueUnlocked;
+  elements.bonusClue().classList.toggle('hidden', !bonusClueUnlocked);
+  elements.bonusClue().classList.toggle('revealed', bonusClueUnlocked);
+  elements.bonusClue().textContent = bonusClueUnlocked ? formatBonusClue() : '';
+  elements.attempts().textContent = attemptsLeft;
+  elements.timer().textContent = '—';
+  elements.gameOver().classList.add('hidden');
+
+  const gameOver = attemptsLeft <= 0 || guesses.some(n => normalizeName(n) === normalizeName(answer?.name));
+  if (gameOver) {
+    if (attemptsLeft <= 0) lose();
+    else win(guesses.length === 1, guesses.length === MAX_ATTEMPTS);
+  } else {
+    elements.message().textContent = "Your turn! Make your guess below.";
+    elements.message().className = 'message';
+    hideCoopBanner();
+  }
+  return true;
+}
 
 function getSportConfig() {
   return SPORTS[currentSport];
 }
 
 function getBasePlayers(sport = currentSport) {
+  if (sport === 'all') return [];
   if (sport === 'golf' && typeof GOLF_PLAYER_DATA !== 'undefined') return GOLF_PLAYER_DATA;
   if (sport === 'mlb' && typeof PLAYER_DATA !== 'undefined') return PLAYER_DATA;
   if (sport === 'nba' && typeof NBA_PLAYER_DATA !== 'undefined') return NBA_PLAYER_DATA;
   if (sport === 'nfl' && typeof NFL_PLAYER_DATA !== 'undefined') return NFL_PLAYER_DATA;
+  if (sport === 'nhl' && typeof NHL_PLAYER_DATA !== 'undefined') return NHL_PLAYER_DATA;
   return [];
 }
 
+function stableHash32(str) {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+function clamp(n, min, max) {
+  return Math.max(min, Math.min(max, n));
+}
+
+function deriveHandedness(name) {
+  return (stableHash32(name) % 2) === 0 ? 'R' : 'L';
+}
+
+function deriveHeightInches(name, sportKey) {
+  const h = stableHash32(`${sportKey}:${name}`);
+  // Rough, non-cursed ranges to keep the UI sane.
+  const min = sportKey === 'golf' ? 66 : sportKey === 'mlb' ? 67 : 68;
+  const max = sportKey === 'golf' ? 78 : sportKey === 'mlb' ? 79 : 80;
+  return min + (h % (max - min + 1));
+}
+
+/** Used for All Sports when a league dataset has no `age` field (NBA/NFL/NHL). */
+function deriveAgeYears(name, sportKey) {
+  const h = stableHash32(`${sportKey}:${name}:age`);
+  const min = 22;
+  const max = 40;
+  return min + (h % (max - min + 1));
+}
+
+function getAllSportsAllocations(round) {
+  const clampedRound = Math.max(1, Math.min(round, ROUND_SIZES.length));
+  const size = ROUND_SIZES[clampedRound - 1];
+  const sportKeys = ['nfl', 'nba', 'mlb', 'nhl', 'golf'];
+  const base = Math.floor(size / sportKeys.length);
+  let remainder = size - base * sportKeys.length;
+  const counts = {};
+  for (const k of sportKeys) {
+    counts[k] = base + (remainder > 0 ? 1 : 0);
+    remainder = Math.max(0, remainder - 1);
+  }
+  const starts = {};
+  for (const k of sportKeys) starts[k] = 0;
+  for (let r = 1; r < clampedRound; r++) {
+    const s = ROUND_SIZES[r - 1];
+    const b = Math.floor(s / sportKeys.length);
+    let rem = s - b * sportKeys.length;
+    for (const k of sportKeys) {
+      const c = b + (rem > 0 ? 1 : 0);
+      rem = Math.max(0, rem - 1);
+      starts[k] += c;
+    }
+  }
+  return { sportKeys, counts, starts };
+}
+
+function buildAllSportsPlayersForRound(round) {
+  const { sportKeys, counts, starts } = getAllSportsAllocations(round);
+  const out = [];
+
+  for (const sportKey of sportKeys) {
+    const basePlayers = getBasePlayers(sportKey) || [];
+    const start = starts[sportKey] ?? 0;
+    const count = counts[sportKey] ?? 0;
+    const slice = basePlayers.slice(start, start + count);
+
+    slice.forEach((p, i) => {
+      const rankIndex = start + i; // 0-based in that sport list
+      const teamOrCountry = sportKey === 'golf' ? p.country : p.team;
+      const posOrHand = sportKey === 'golf' ? deriveHandedness(p.name) : p.position;
+      const height = (typeof p.height === 'number' && !isNaN(p.height)) ? p.height : deriveHeightInches(p.name, sportKey);
+      const titles =
+        sportKey === 'golf' ? (Number(p.majorWins) || 0) :
+        (typeof p.rings === 'number' ? p.rings : 0);
+      const age =
+        typeof p.age === 'number' && !isNaN(p.age) ? p.age : deriveAgeYears(p.name, sportKey);
+
+      const sportLabel = sportKey.toUpperCase();
+      out.push({
+        name: p.name,
+        sport: sportLabel,
+        team: teamOrCountry || '—',
+        position: posOrHand || '—',
+        height,
+        titles,
+        age,
+      });
+    });
+  }
+
+  return out;
+}
+
 function getPlayersForRound(sport = currentSport, round = currentRound) {
+  if (sport === 'all') return buildAllSportsPlayersForRound(round);
   const base = getBasePlayers(sport) || [];
   if (!base.length) return [];
   const clampedRound = Math.max(1, Math.min(round, ROUND_SIZES.length));
@@ -145,6 +547,8 @@ function getClueGrid() {
   if (currentSport === 'golf') return elements.clueGridGolf();
   if (currentSport === 'nba') return elements.clueGridNba();
   if (currentSport === 'nfl') return elements.clueGridNfl();
+  if (currentSport === 'nhl') return elements.clueGridNhl();
+  if (currentSport === 'all') return elements.clueGridAll();
   return elements.clueGridMlb();
 }
 
@@ -188,6 +592,8 @@ const TAGLINES = {
   golf: 'Find the mystery player using 6 clues. 6 guesses.',
   nba: 'Find the mystery hooper using 6 clues. 6 guesses.',
   nfl: 'Find the mystery player using 6 clues. 6 guesses.',
+  nhl: 'Find the mystery skater using 6 clues. 6 guesses.',
+  all: 'All sports, one mystery athlete. 6 clues. 6 guesses.',
 };
 
 const SPORT_ICONS = {
@@ -195,6 +601,8 @@ const SPORT_ICONS = {
   golf: '⛳',
   nba: '🏀',
   nfl: '🏈',
+  nhl: '🏒',
+  all: '🏆',
 };
 
 function updateHeaderForSport() {
@@ -262,6 +670,24 @@ function getFilteredPlayers() {
       if (guessedSet.has(p.name)) return false;
       if (conf && p.league !== conf) return false;
       if (team && p.team !== team) return false;
+      return true;
+    });
+  }
+  if (currentSport === 'nhl') {
+    const conf = elements.nhlConferenceFilter().value;
+    const team = elements.nhlTeamFilter().value;
+    return players.filter(p => {
+      if (guessedSet.has(p.name)) return false;
+      if (conf && p.league !== conf) return false;
+      if (team && p.team !== team) return false;
+      return true;
+    });
+  }
+  if (currentSport === 'all') {
+    const sport = elements.allSportFilter().value;
+    return players.filter(p => {
+      if (guessedSet.has(p.name)) return false;
+      if (sport && p.sport !== sport) return false;
       return true;
     });
   }
@@ -337,6 +763,21 @@ function populateNflFilters() {
     teams.map(t => `<option value="${escapeHtml(t)}" ${t === currentTeam ? 'selected' : ''}>${escapeHtml(t)}</option>`).join('');
 }
 
+function populateNhlFilters() {
+  if (currentSport !== 'nhl') return;
+  const confSel = elements.nhlConferenceFilter();
+  const teamSel = elements.nhlTeamFilter();
+  const currentConf = confSel.value;
+  const currentTeam = teamSel.value;
+  const conferences = [...new Set(players.map(p => p.league))].sort();
+  let teams = [...new Set(players.map(p => p.team))].sort();
+  if (currentConf) teams = [...new Set(players.filter(p => p.league === currentConf).map(p => p.team))].sort();
+  confSel.innerHTML = '<option value="">All</option>' +
+    conferences.map(c => `<option value="${escapeHtml(c)}" ${c === currentConf ? 'selected' : ''}>${escapeHtml(c)}</option>`).join('');
+  teamSel.innerHTML = '<option value="">All</option>' +
+    teams.map(t => `<option value="${escapeHtml(t)}" ${t === currentTeam ? 'selected' : ''}>${escapeHtml(t)}</option>`).join('');
+}
+
 function populateSelect() {
   const filtered = getFilteredPlayers();
   const sel = elements.guessSelect();
@@ -355,6 +796,11 @@ function escapeHtml(s) {
 
 function getAnswerVal(key) {
   const cfg = getSportConfig();
+  if (currentSport === 'all') {
+    if (key === 'height') return formatHeight(answer.height);
+    if (cfg.numericKeys.includes(key)) return String(answer[key]);
+    return answer[key];
+  }
   if (key === 'height') return formatHeight(answer.height);
   if (cfg.numericKeys.includes(key)) return String(answer[key]);
   return answer[key];
@@ -515,11 +961,11 @@ function processGuessReveals(guess, onComplete) {
 }
 
 const FULL_RUN_MSGS = [
-  n => `From 25 to 100 — you ran the whole gauntlet. All four rounds, no mercy. 🏆 The answer was ${n}.`,
+  n => `From 25 to 150 — you ran the whole gauntlet. All six rounds, no mercy. 🏆 The answer was ${n}.`,
   n => `You cleared the gauntlet. Every round. The mystery players never stood a chance. The answer was ${n}.`,
-  n => `Four rounds, four W's. You didn't just play — you dominated. 🏆 The answer was ${n}.`,
-  n => `25, 50, 75, 100 … you crushed 'em all. Full run complete. The answer was ${n}.`,
-  n => `Who hurt you? You just breezed through all four rounds. Legendary. The answer was ${n}.`,
+  n => `Six rounds, six W's. You didn't just play — you dominated. 🏆 The answer was ${n}.`,
+  n => `25, 50, 75, 100, 125, 150 … you crushed 'em all. Full run complete. The answer was ${n}.`,
+  n => `Who hurt you? You just breezed through all six rounds. Legendary. The answer was ${n}.`,
 ];
 
 const FIRST_TRY_MSGS = [
@@ -610,10 +1056,14 @@ function showSportUI() {
   elements.filtersGolf().classList.toggle('hidden', currentSport !== 'golf');
   elements.filtersNba().classList.toggle('hidden', currentSport !== 'nba');
   elements.filtersNfl().classList.toggle('hidden', currentSport !== 'nfl');
+  elements.filtersNhl().classList.toggle('hidden', currentSport !== 'nhl');
+  elements.filtersAll().classList.toggle('hidden', currentSport !== 'all');
   elements.clueGridMlb().classList.toggle('hidden', currentSport !== 'mlb');
   elements.clueGridGolf().classList.toggle('hidden', currentSport !== 'golf');
   elements.clueGridNba().classList.toggle('hidden', currentSport !== 'nba');
   elements.clueGridNfl().classList.toggle('hidden', currentSport !== 'nfl');
+  elements.clueGridNhl().classList.toggle('hidden', currentSport !== 'nhl');
+  elements.clueGridAll()?.classList.toggle('hidden', currentSport !== 'all');
   updateHeaderForSport();
   $$('.sport-tab').forEach(tab => {
     tab.classList.toggle('active', tab.dataset.sport === currentSport);
@@ -622,6 +1072,13 @@ function showSportUI() {
 }
 
 function startGame() {
+  coopMode = false;
+  coopSeed = null;
+  history.replaceState(null, '', location.pathname);
+  hideCoopBanner();
+  hideCoopGoFirstModal();
+  hideCoopShareModal();
+
   players = getPlayers();
   if (players.length === 0) {
     elements.message().textContent = 'Player data failed to load.';
@@ -649,6 +1106,12 @@ function startGame() {
     elements.nflConferenceFilter().value = '';
     elements.nflTeamFilter().value = '';
     populateNflFilters();
+  } else if (currentSport === 'nhl') {
+    elements.nhlConferenceFilter().value = '';
+    elements.nhlTeamFilter().value = '';
+    populateNhlFilters();
+  } else if (currentSport === 'all') {
+    elements.allSportFilter().value = '';
   }
   if (timerInterval) {
     clearInterval(timerInterval);
@@ -685,6 +1148,13 @@ function formatBonusClue() {
   }
   if (currentSport === 'nfl') {
     return `${formatHeight(answer.height)} · ${answer.rings} Super Bowl ring${answer.rings !== 1 ? 's' : ''}`;
+  }
+  if (currentSport === 'nhl') {
+    return `${formatHeight(answer.height)} · ${answer.rings} Stanley Cup${answer.rings !== 1 ? 's' : ''}`;
+  }
+  if (currentSport === 'all') {
+    const age = Number(answer.age) || 0;
+    return `${answer.sport} · ${formatHeight(answer.height)} · ${answer.titles} title${answer.titles !== 1 ? 's' : ''} · age ${age}`;
   }
   if (answer.statsType === 'hitter') {
     return `2025 stat: ${answer.battingAvg} AVG, ${answer.homeRuns} HR, ${answer.rbi} RBI`;
@@ -769,6 +1239,7 @@ function showScoreBreakdown(won) {
 }
 
 function win(isFirstTry, isLastPick) {
+  if (coopMode) hideCoopBanner();
   setStreak(getStreak(currentSport) + 1, currentSport);
   updateStreakDisplay();
   stopTimer();
@@ -798,6 +1269,7 @@ function win(isFirstTry, isLastPick) {
 }
 
 function lose() {
+  if (coopMode) hideCoopBanner();
   setStreak(0, currentSport);
   updateStreakDisplay();
   stopTimer();
@@ -836,6 +1308,10 @@ function handleGuess() {
       filtersUsedThisGame = true;
     } else if (currentSport === 'nfl' && (elements.nflConferenceFilter().value || elements.nflTeamFilter().value)) {
       filtersUsedThisGame = true;
+    } else if (currentSport === 'nhl' && (elements.nhlConferenceFilter().value || elements.nhlTeamFilter().value)) {
+      filtersUsedThisGame = true;
+    } else if (currentSport === 'all' && elements.allSportFilter().value) {
+      filtersUsedThisGame = true;
     }
   }
   guesses.push(guessed.name);
@@ -868,6 +1344,11 @@ function handleGuess() {
 
     if (attemptsLeft <= 0) {
       lose();
+    } else if (coopMode) {
+      history.replaceState(null, '', getCoopLink());
+      elements.guessSelect().disabled = true;
+      elements.guessBtn().disabled = true;
+      showCoopShareModal();
     }
 
     let summaryText;
@@ -889,6 +1370,7 @@ function handleGuess() {
 
 function switchSport(sport) {
   if (sport === currentSport) return;
+  if (coopMode) return;
   currentSport = sport;
   currentRound = 1;
   startGame();
@@ -903,7 +1385,8 @@ function init() {
   }
   updateStreakDisplay();
   showSportUI();
-  startGame();
+
+  if (!loadCoopFromHash()) startGame();
 
   $$('.sport-tab').forEach(tab => {
     tab.addEventListener('click', () => switchSport(tab.dataset.sport));
@@ -925,6 +1408,12 @@ function init() {
     populateSelect();
   });
   elements.nflTeamFilter().addEventListener('change', populateSelect);
+  elements.nhlConferenceFilter()?.addEventListener('change', () => {
+    populateNhlFilters();
+    populateSelect();
+  });
+  elements.nhlTeamFilter()?.addEventListener('change', populateSelect);
+  elements.allSportFilter()?.addEventListener('change', populateSelect);
   elements.guessBtn().addEventListener('click', handleGuess);
   elements.guessSelect().addEventListener('keydown', (e) => {
     if (e.key === 'Enter') handleGuess();
@@ -936,6 +1425,33 @@ function init() {
   });
   elements.newGameBtn().addEventListener('click', () => {
     currentRound = 1;
+    startGame();
+  });
+  elements.playWithFriendBtn()?.addEventListener('click', showCoopGoFirstModal);
+  elements.coopGoFirstBtn()?.addEventListener('click', () => {
+    hideCoopGoFirstModal();
+    startCoopGame();
+  });
+  elements.coopShareCopyBtn()?.addEventListener('click', async () => {
+    const link = getCoopLink();
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(link);
+        elements.coopShareDoneBtn().disabled = false;
+        elements.coopShareCopyBtn().textContent = 'Copied!';
+      }
+    } catch (_) {}
+  });
+  elements.coopShareDoneBtn()?.addEventListener('click', () => {
+    hideCoopShareModal();
+    showCoopBanner('Link copied. Send it to your friend so they can take their turn.');
+  });
+  elements.coopCopyBtn()?.addEventListener('click', copyCoopLink);
+  elements.coopExitBtn()?.addEventListener('click', () => {
+    coopMode = false;
+    coopSeed = null;
+    history.replaceState(null, '', location.pathname);
+    hideCoopBanner();
     startGame();
   });
   $('#helpBtn')?.addEventListener('click', () => {
@@ -954,6 +1470,10 @@ function init() {
     showScoreBreakdown(!inGameOver);
   });
   $('#scoreBreakdownClose')?.addEventListener('click', () => $('#scoreBreakdownOverlay')?.classList.add('hidden'));
+  window.addEventListener('hashchange', () => {
+    if (location.hash.startsWith('#coop-')) location.reload();
+  });
+
   document.addEventListener('keydown', (e) => {
     if (e.isComposing) return;
     if (e.target.closest('.score-clickable') && (e.key === 'Enter' || e.key === ' ')) {
