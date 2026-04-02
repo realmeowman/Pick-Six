@@ -5,6 +5,9 @@ const MAX_ATTEMPTS = 6;
 const ROUND_SIZES = [25, 50, 75, 100, 125, 150];
 const MAX_SESSION_SCORE = ROUND_SIZES.length * 10;
 
+/** Optional: Worker URL (https://…) so shared links can show the last guess in iMessage title; see workers/coop-preview.js */
+const COOP_PREVIEW_ORIGIN = '';
+
 const SPORTS = {
   mlb: {
     key: 'mlb',
@@ -238,6 +241,9 @@ const elements = {
   coopShareLinkInput: () => $('#coopShareLinkInput'),
   coopShareCopyBtn: () => $('#coopShareCopyBtn'),
   coopShareDoneBtn: () => $('#coopShareDoneBtn'),
+  coopPreviewCanvas: () => $('#coopPreviewCanvas'),
+  coopSaveImageBtn: () => $('#coopSaveImageBtn'),
+  coopCopyImageBtn: () => $('#coopCopyImageBtn'),
   clueGridAll: () => $('#clueGridAll'),
 };
 
@@ -301,14 +307,46 @@ function decodeCoopState(hash) {
   }
 }
 
+function coopStateB64ToUrlParam(b64) {
+  return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function urlParamToCoopStateB64(param) {
+  let b64 = param.replace(/-/g, '+').replace(/_/g, '/');
+  const pad = b64.length % 4;
+  if (pad) b64 += '='.repeat(4 - pad);
+  return b64;
+}
+
 function getCoopLink() {
   const state = encodeCoopState();
-  return `${location.origin}${location.pathname}#coop-${state}`;
+  const safe = coopStateB64ToUrlParam(state);
+  const u = new URL(location.origin + location.pathname);
+  const sp = new URLSearchParams(location.search);
+  sp.set('coop', safe);
+  u.search = sp.toString();
+  return u.toString();
+}
+
+function getCoopShareUrl() {
+  const direct = getCoopLink();
+  const origin = typeof COOP_PREVIEW_ORIGIN === 'string' ? COOP_PREVIEW_ORIGIN.trim() : '';
+  if (!origin || !guesses.length) return direct;
+  const last = guesses[guesses.length - 1];
+  if (!last) return direct;
+  try {
+    const u = new URL(origin);
+    u.searchParams.set('g', last);
+    u.searchParams.set('r', direct);
+    return u.toString();
+  } catch (_) {
+    return direct;
+  }
 }
 
 function updateCoopLink() {
   const input = elements.coopLinkInput();
-  if (input) input.value = getCoopLink();
+  if (input) input.value = getCoopShareUrl();
 }
 
 function showCoopBanner(message) {
@@ -334,15 +372,82 @@ function hideCoopGoFirstModal() {
   elements.coopGoFirstModal()?.classList.add('hidden');
 }
 
+function wrapCanvasLines(ctx, text, maxWidth, maxLines) {
+  const words = text.split(/\s+/).filter(Boolean);
+  const lines = [];
+  let line = '';
+  for (let i = 0; i < words.length; i++) {
+    const word = words[i];
+    const test = line ? `${line} ${word}` : word;
+    if (ctx.measureText(test).width <= maxWidth) {
+      line = test;
+      continue;
+    }
+    if (line) {
+      lines.push(line);
+      line = '';
+    }
+    if (lines.length >= maxLines) break;
+    if (ctx.measureText(word).width <= maxWidth) {
+      line = word;
+    } else {
+      let w = word;
+      while (w.length > 1 && ctx.measureText(`${w}…`).width > maxWidth) w = w.slice(0, -1);
+      lines.push(`${w}…`);
+      if (lines.length >= maxLines) return lines;
+    }
+  }
+  if (line && lines.length < maxLines) lines.push(line);
+  return lines.slice(0, maxLines);
+}
+
+function renderCoopPreviewCard(guessName) {
+  const canvas = elements.coopPreviewCanvas();
+  if (!canvas) return;
+  const w = 1200;
+  const h = 630;
+  const dpr = Math.min(2, typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1);
+  canvas.width = w * dpr;
+  canvas.height = h * dpr;
+  canvas.style.width = `${w / 2}px`;
+  canvas.style.height = `${h / 2}px`;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = '#0d1117';
+  ctx.fillRect(0, 0, w, h);
+  ctx.fillStyle = '#e6edf3';
+  ctx.font = 'bold 56px system-ui, -apple-system, sans-serif';
+  ctx.fillText('Pick Six', 56, 96);
+  const sportLabel = (currentSport || '').toUpperCase();
+  ctx.fillStyle = '#8b949e';
+  ctx.font = '28px system-ui, -apple-system, sans-serif';
+  ctx.fillText(sportLabel, 56, 148);
+  ctx.fillStyle = '#58a6ff';
+  ctx.font = 'bold 44px system-ui, -apple-system, sans-serif';
+  const guessLine = guessName ? `I guessed: ${guessName}` : 'Your turn';
+  const lines = wrapCanvasLines(ctx, guessLine, w - 112, 3);
+  let ly = 300;
+  lines.forEach((ln) => {
+    ctx.fillText(ln, 56, ly);
+    ly += 52;
+  });
+  ctx.fillStyle = '#8b949e';
+  ctx.font = '26px system-ui, -apple-system, sans-serif';
+  ctx.fillText('Your turn — open the link to play.', 56, 540);
+}
+
 function showCoopShareModal() {
   const modal = elements.coopShareModal();
   const input = elements.coopShareLinkInput();
   const doneBtn = elements.coopShareDoneBtn();
   const copyBtn = elements.coopShareCopyBtn();
   if (!modal) return;
-  if (input) input.value = getCoopLink();
+  if (input) input.value = getCoopShareUrl();
   if (doneBtn) doneBtn.disabled = true;
   if (copyBtn) copyBtn.textContent = 'Copy link';
+  const lastGuess = guesses.length ? guesses[guesses.length - 1] : '';
+  renderCoopPreviewCard(lastGuess);
   modal.classList.remove('hidden');
   copyBtn?.focus();
 }
@@ -352,7 +457,7 @@ function hideCoopShareModal() {
 }
 
 async function copyCoopLink() {
-  const link = getCoopLink();
+  const link = getCoopShareUrl();
   try {
     if (navigator.clipboard?.writeText) {
       await navigator.clipboard.writeText(link);
@@ -503,10 +608,18 @@ function syncClueSlotsFromRevealed() {
   });
 }
 
-function loadCoopFromHash() {
-  const hash = location.hash.slice(1);
-  if (!hash.startsWith('coop-')) return false;
-  const state = decodeCoopState(hash.slice(5));
+function loadCoopFromUrl() {
+  let state = null;
+  const params = new URLSearchParams(location.search);
+  const q = params.get('coop');
+  if (q) {
+    state = decodeCoopState(urlParamToCoopStateB64(q));
+  } else {
+    const hash = location.hash.slice(1);
+    if (hash.startsWith('coop-')) {
+      state = decodeCoopState(hash.slice(5));
+    }
+  }
   if (!state || state.e == null) return false;
   applyCoopState(state);
   showSportUI();
@@ -534,6 +647,9 @@ function loadCoopFromHash() {
     elements.message().textContent = "Your turn! Pick a player and press Guess.";
     elements.message().className = 'message';
     hideCoopBanner();
+  }
+  if (!q && location.hash.startsWith('#coop-')) {
+    history.replaceState(null, '', getCoopLink());
   }
   return true;
 }
@@ -1772,7 +1888,7 @@ function init() {
   showSportUI();
 
   resetSessionRoundScores();
-  if (!loadCoopFromHash()) startGame();
+  if (!loadCoopFromUrl()) startGame();
 
   $$('.sport-tab').forEach(tab => {
     tab.addEventListener('click', () => switchSport(tab.dataset.sport));
@@ -1832,7 +1948,7 @@ function init() {
     startCoopGame();
   });
   elements.coopShareCopyBtn()?.addEventListener('click', async () => {
-    const link = getCoopLink();
+    const link = getCoopShareUrl();
     try {
       if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(link);
@@ -1840,6 +1956,40 @@ function init() {
         elements.coopShareCopyBtn().textContent = 'Copied!';
       }
     } catch (_) {}
+  });
+  elements.coopSaveImageBtn()?.addEventListener('click', () => {
+    const canvas = elements.coopPreviewCanvas();
+    if (!canvas) return;
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      const a = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      a.href = url;
+      a.download = 'pick-six-your-turn.png';
+      a.click();
+      URL.revokeObjectURL(url);
+      const done = elements.coopShareDoneBtn();
+      if (done) done.disabled = false;
+    }, 'image/png');
+  });
+  elements.coopCopyImageBtn()?.addEventListener('click', async () => {
+    const canvas = elements.coopPreviewCanvas();
+    if (!canvas || !navigator.clipboard) return;
+    canvas.toBlob(async (blob) => {
+      if (!blob) return;
+      try {
+        if (typeof ClipboardItem === 'undefined') return;
+        await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
+        const done = elements.coopShareDoneBtn();
+        if (done) done.disabled = false;
+        const btn = elements.coopCopyImageBtn();
+        if (btn) {
+          const prev = btn.textContent;
+          btn.textContent = 'Copied!';
+          setTimeout(() => { btn.textContent = prev; }, 2000);
+        }
+      } catch (_) {}
+    }, 'image/png');
   });
   elements.coopShareDoneBtn()?.addEventListener('click', () => {
     hideCoopShareModal();
@@ -1876,6 +2026,9 @@ function init() {
   $('#scoreBreakdownClose')?.addEventListener('click', () => $('#scoreBreakdownOverlay')?.classList.add('hidden'));
   window.addEventListener('hashchange', () => {
     if (location.hash.startsWith('#coop-')) location.reload();
+  });
+  window.addEventListener('popstate', () => {
+    if (new URLSearchParams(location.search).get('coop')) location.reload();
   });
 
   /** Unlock audio on first tap so clue sounds (fired from setTimeout) and async share copy can play. */

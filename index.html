@@ -464,9 +464,16 @@
   </div>
 
   <div class="coop-modal-overlay hidden" id="coopShareModal" role="dialog" aria-modal="true" aria-labelledby="coopShareTitle">
-    <div class="coop-modal">
+    <div class="coop-modal coop-modal--share">
       <h2 id="coopShareTitle">Hand it off!</h2>
-      <p>Copy the link and fire it to your friend — iMessage, text, carrier pigeon, whatever. Their turn to guess.</p>
+      <p>Copy the link (no auto-filled message text) or save the card — your guess is on the image so your friend sees it in the thread or as an attachment.</p>
+      <div class="coop-preview-card-wrap">
+        <canvas id="coopPreviewCanvas" width="1200" height="630" role="img" aria-label="Preview card with your last guess"></canvas>
+        <div class="coop-preview-card-actions">
+          <button type="button" class="secondary small" id="coopSaveImageBtn">Save image</button>
+          <button type="button" class="secondary small" id="coopCopyImageBtn">Copy image</button>
+        </div>
+      </div>
       <div class="coop-modal-link-row">
         <input id="coopShareLinkInput" type="text" readonly class="coop-link-input" aria-label="Game link to share">
         <button id="coopShareCopyBtn" type="button" class="secondary">Copy link</button>

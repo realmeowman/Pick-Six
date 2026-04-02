@@ -944,6 +944,27 @@ button:active {
   min-width: 0;
 }
 
+.coop-modal--share .coop-preview-card-wrap {
+  margin-bottom: 1rem;
+}
+
+.coop-preview-card-wrap canvas {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.coop-preview-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
 .coop-modal .primary {
   width: 100%;
   background: var(--accent);
