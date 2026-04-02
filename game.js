@@ -982,9 +982,8 @@ function getAnswerVal(key) {
 
 const audioCtx = typeof AudioContext !== 'undefined' ? new (window.AudioContext || window.webkitAudioContext)() : null;
 
-function playSound(type) {
+function playOscillatorPattern(type) {
   if (!audioCtx) return;
-  if (audioCtx.state === 'suspended') audioCtx.resume();
   const osc = audioCtx.createOscillator();
   const gain = audioCtx.createGain();
   osc.connect(gain);
@@ -1001,6 +1000,21 @@ function playSound(type) {
   }
   osc.start(audioCtx.currentTime);
   osc.stop(audioCtx.currentTime + 0.15);
+}
+
+/** Mobile browsers (especially iOS Safari) start AudioContext suspended; resume() is async. */
+function playSound(type) {
+  if (!audioCtx) return;
+  const run = () => {
+    try {
+      playOscillatorPattern(type);
+    } catch (_) {}
+  };
+  if (audioCtx.state !== 'running') {
+    audioCtx.resume().then(run).catch(run);
+  } else {
+    run();
+  }
 }
 
 function resetClueSlots() {
@@ -1556,6 +1570,9 @@ function lose() {
 }
 
 function handleGuess() {
+  if (audioCtx && audioCtx.state !== 'running') {
+    void audioCtx.resume();
+  }
   const raw = elements.guessSelect().value.trim();
   if (!raw) {
     elements.message().textContent = 'Pick a player!';
@@ -1675,6 +1692,9 @@ function fallbackCopyToClipboard(text) {
 }
 
 function copyShareGameLink() {
+  if (audioCtx && audioCtx.state !== 'running') {
+    void audioCtx.resume();
+  }
   /** Static /share/<sport>/ pages carry league-specific Open Graph tags for iMessage & social previews. */
   const origin = location.origin.replace(/\/$/, '');
   const url = `${origin}/share/${encodeURIComponent(currentSport)}/`;
@@ -1857,6 +1877,19 @@ function init() {
   window.addEventListener('hashchange', () => {
     if (location.hash.startsWith('#coop-')) location.reload();
   });
+
+  /** Unlock audio on first tap so clue sounds (fired from setTimeout) and async share copy can play. */
+  if (audioCtx) {
+    const unlockAudio = () => {
+      if (audioCtx.state !== 'closed') {
+        audioCtx.resume().catch(() => {});
+      }
+      document.removeEventListener('touchstart', unlockAudio);
+      document.removeEventListener('click', unlockAudio);
+    };
+    document.addEventListener('touchstart', unlockAudio, { passive: true });
+    document.addEventListener('click', unlockAudio);
+  }
 
   document.addEventListener('keydown', (e) => {
     if (e.isComposing) return;
