@@ -1,0 +1,15 @@
+---
+description: After publishing, summarize what changed for the release
+alwaysApply: true
+---
+
+# Publish and release notes
+
+When the user asks to **publish**, **ship**, **release**, or **push** a new version (typically `git commit` + `git push` to the main deployment branch), do the following **after** the push succeeds:
+
+1. **Summarize the release** in a short, readable form the user can use as release notes or a changelog entry.
+2. Cover **additions**, **changes**, and **removals** that matter for the product or maintainers—not every line of diff.
+3. Optionally mention **which areas** of the project were touched (e.g. scoring, UI, coop) or **notable files** if it helps context.
+4. Keep it **concise** (a tight paragraph or a few bullets), in **complete sentences**, unless the user asks for more detail.
+
+If the push fails or nothing was committed, explain that instead of inventing a summary.
