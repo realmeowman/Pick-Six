@@ -106,6 +106,28 @@ const SPORTS = {
   },
 };
 
+function isValidSportKey(key) {
+  return typeof key === 'string' && Object.prototype.hasOwnProperty.call(SPORTS, key);
+}
+
+function getSportFromUrl() {
+  try {
+    const p = new URLSearchParams(location.search).get('sport');
+    if (!p) return null;
+    const key = p.toLowerCase().trim();
+    return isValidSportKey(key) ? key : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+/** Non-coop games: keep ?sport= in the address bar so the link is shareable. */
+function replaceUrlForLocalGame() {
+  const params = new URLSearchParams();
+  params.set('sport', currentSport);
+  history.replaceState(null, '', `${location.pathname}?${params.toString()}`);
+}
+
 let currentSport = 'mlb';
 let players = [];
 let revealedCriteria = new Set();
@@ -209,6 +231,7 @@ const elements = {
   coopCopyBtn: () => $('#coopCopyBtn'),
   coopExitBtn: () => $('#coopExitBtn'),
   playWithFriendBtn: () => $('#playWithFriendBtn'),
+  shareGameBtn: () => $('#shareGameBtn'),
   coopGoFirstModal: () => $('#coopGoFirstModal'),
   coopGoFirstBtn: () => $('#coopGoFirstBtn'),
   coopShareModal: () => $('#coopShareModal'),
@@ -1235,7 +1258,7 @@ function showSportUI() {
 function startGame() {
   coopMode = false;
   coopSeed = null;
-  history.replaceState(null, '', location.pathname);
+  replaceUrlForLocalGame();
   hideCoopBanner();
   hideCoopGoFirstModal();
   hideCoopShareModal();
@@ -1640,8 +1663,88 @@ function switchSport(sport) {
   startGame();
 }
 
+let shareBtnResetTimer = null;
+
+function fallbackCopyToClipboard(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.setAttribute('readonly', '');
+  ta.style.position = 'fixed';
+  ta.style.left = '-9999px';
+  document.body.appendChild(ta);
+  ta.select();
+  try {
+    return document.execCommand('copy');
+  } catch (_) {
+    return false;
+  } finally {
+    document.body.removeChild(ta);
+  }
+}
+
+function copyShareGameLink() {
+  const params = new URLSearchParams();
+  params.set('sport', currentSport);
+  const url = `${location.origin}${location.pathname}?${params.toString()}`;
+  const btn = elements.shareGameBtn();
+  let pulseStart = 0;
+  if (btn) {
+    btn.classList.remove('share-game-btn--copied');
+    btn.classList.add('share-game-btn--checking');
+    pulseStart = Date.now();
+  }
+
+  const revealCopied = () => {
+    if (!btn) return;
+    if (shareBtnResetTimer) {
+      clearTimeout(shareBtnResetTimer);
+      shareBtnResetTimer = null;
+    }
+    btn.classList.remove('share-game-btn--checking');
+    btn.classList.add('share-game-btn--copied');
+    btn.setAttribute('aria-label', 'Link copied');
+    shareBtnResetTimer = setTimeout(() => {
+      btn.classList.remove('share-game-btn--copied');
+      btn.setAttribute('aria-label', 'Copy link to play this sport');
+      shareBtnResetTimer = null;
+    }, 2500);
+  };
+
+  const succeed = () => {
+    playSound('success');
+    if (!btn) return;
+    const elapsed = Date.now() - pulseStart;
+    const wait = Math.max(0, 400 - elapsed);
+    setTimeout(revealCopied, wait);
+  };
+
+  const fail = () => {
+    if (btn) {
+      btn.classList.remove('share-game-btn--checking');
+      btn.title = url;
+    }
+    setTimeout(() => {
+      if (btn) btn.title = '';
+    }, 12000);
+  };
+
+  if (!navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') {
+    if (fallbackCopyToClipboard(url)) succeed();
+    else fail();
+    return;
+  }
+
+  navigator.clipboard.writeText(url).then(() => {
+    succeed();
+  }).catch(() => {
+    if (fallbackCopyToClipboard(url)) succeed();
+    else fail();
+  });
+}
+
 function init() {
-  currentSport = 'nfl';
+  const urlSport = getSportFromUrl();
+  currentSport = urlSport || 'nfl';
   players = getPlayers();
   if (players.length === 0) {
     elements.message().textContent = 'Player data failed to load.';
@@ -1732,10 +1835,12 @@ function init() {
   elements.coopExitBtn()?.addEventListener('click', () => {
     coopMode = false;
     coopSeed = null;
-    history.replaceState(null, '', location.pathname);
     hideCoopBanner();
     resetSessionRoundScores();
     startGame();
+  });
+  elements.shareGameBtn()?.addEventListener('click', () => {
+    copyShareGameLink();
   });
   $('#helpBtn')?.addEventListener('click', () => {
     const panel = $('#helpPanel');

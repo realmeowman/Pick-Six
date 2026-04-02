@@ -64,8 +64,16 @@
         <p class="timer" id="timer">0:00</p>
         <p class="streak" id="streak" aria-label="Win streak"></p>
         <button id="helpBtn" type="button" class="secondary small" aria-haspopup="dialog" aria-controls="helpPanel">?</button>
-        <button id="newGameBtn" type="button" class="secondary small">Start new game</button>
-        <button id="playWithFriendBtn" type="button" class="secondary small coop-mode-btn">Play with a friend</button>
+        <div class="header-action-buttons">
+          <button id="newGameBtn" type="button" class="secondary small">Start new game</button>
+          <button id="playWithFriendBtn" type="button" class="secondary small coop-mode-btn">Play with a friend</button>
+          <button id="shareGameBtn" type="button" class="secondary small share-game-btn" aria-label="Copy link to play this sport">
+            <span class="share-game-btn__stack">
+              <span class="share-game-btn__label share-game-btn__label--share">Share</span>
+              <span class="share-game-btn__label share-game-btn__label--copied" aria-hidden="true">Copied</span>
+            </span>
+          </button>
+        </div>
       </div>
       <section id="coopBanner" class="coop-banner hidden">
         <p class="coop-banner-msg">Copy the link and send to your friend.</p>
