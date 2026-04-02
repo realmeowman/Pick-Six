@@ -138,7 +138,8 @@ h1 {
 
 /* Share: same footprint as other secondary.small; copied state mirrors clue-slot check-hit + clue-value.value-correct */
 .share-game-btn {
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, border-radius 0.2s ease;
+  /* Omit border-radius from transition — animating 8px→10px causes a visible flash with the label crossfade */
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .share-game-btn.share-game-btn--checking {
@@ -160,7 +161,9 @@ h1 {
 
 .share-game-btn__label {
   grid-area: 1 / 1;
-  transition: opacity 0.28s ease;
+  /* Single opacity crossfade only — no reveal-pop here (it fought opacity/transform and caused flicker) */
+  transition: opacity 0.22s ease;
+  backface-visibility: hidden;
 }
 
 .share-game-btn__label--copied {
@@ -180,7 +183,19 @@ h1 {
   padding: 0.15rem 0.6rem;
   border-radius: 999px;
   background: rgba(63, 185, 80, 0.18);
-  animation: reveal-pop 0.35s ease-out;
+}
+
+/* Match "Share" to copied weight/size so the swap does not jump (header .small is 0.78rem) */
+.header-action-buttons .share-game-btn__label {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+/* Same box as the green pill so opacity crossfade does not shift layout */
+.header-action-buttons .share-game-btn__label--share {
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  box-sizing: border-box;
 }
 
 .header-action-buttons .share-game-btn--copied .share-game-btn__label--copied {
@@ -192,8 +207,7 @@ h1 {
     transition: none;
   }
 
-  .share-game-btn.share-game-btn--checking,
-  .share-game-btn--copied .share-game-btn__label--copied {
+  .share-game-btn.share-game-btn--checking {
     animation: none;
   }
 }
