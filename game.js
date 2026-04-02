@@ -1683,9 +1683,9 @@ function fallbackCopyToClipboard(text) {
 }
 
 function copyShareGameLink() {
-  const params = new URLSearchParams();
-  params.set('sport', currentSport);
-  const url = `${location.origin}${location.pathname}?${params.toString()}`;
+  /** Static /share/<sport>/ pages carry league-specific Open Graph tags for iMessage & social previews. */
+  const origin = location.origin.replace(/\/$/, '');
+  const url = `${origin}/share/${encodeURIComponent(currentSport)}/`;
   const btn = elements.shareGameBtn();
   let pulseStart = 0;
   if (btn) {
