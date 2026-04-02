@@ -23,7 +23,10 @@ SPORTS = {
 }
 
 BASE = "https://picksix.lol"
-OG_IMAGE = f"{BASE}/og-image.png"
+
+
+def og_image_url(sport: str) -> str:
+    return f"{BASE}/og-image-{sport}.png"
 
 
 def esc(s: str) -> str:
@@ -40,6 +43,8 @@ def page_html(sport: str, display: str, desc: str) -> str:
     og_title = f"Pick Six — {display} | You Think You Know Ball?"
     url = f"{BASE}/share/{sport}/"
     dest = f"{BASE}/?sport={sport}"
+    og_img = og_image_url(sport)
+    og_alt = f"Pick Six — {display} — branded preview card"
     return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -52,14 +57,14 @@ def page_html(sport: str, display: str, desc: str) -> str:
   <meta property="og:type" content="website">
   <meta property="og:url" content="{esc(url)}">
   <meta property="og:site_name" content="Pick Six">
-  <meta property="og:image" content="{esc(OG_IMAGE)}">
+  <meta property="og:image" content="{esc(og_img)}">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
-  <meta property="og:image:alt" content="Pick Six — sports guessing game">
+  <meta property="og:image:alt" content="{esc(og_alt)}">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="{esc(og_title)}">
   <meta name="twitter:description" content="{esc(desc)}">
-  <meta name="twitter:image" content="{esc(OG_IMAGE)}">
+  <meta name="twitter:image" content="{esc(og_img)}">
   <link rel="canonical" href="{esc(dest)}">
   <meta http-equiv="refresh" content="0;url={esc(dest)}">
   <meta name="theme-color" content="#0d1117">
