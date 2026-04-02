@@ -460,7 +460,7 @@ function startCoopGame() {
   elements.bonusClue().classList.toggle('hidden', !bonusClueUnlocked);
   elements.bonusClue().classList.toggle('revealed', bonusClueUnlocked);
   elements.bonusClue().textContent = bonusClueUnlocked ? formatBonusClue() : '';
-  elements.message().textContent = "Your turn! Make your guess below.";
+  elements.message().textContent = "Your turn! Pick a player and press Guess.";
   elements.message().className = 'message';
   elements.attempts().textContent = attemptsLeft;
   elements.timer().textContent = '—';
@@ -531,7 +531,7 @@ function loadCoopFromHash() {
     if (attemptsLeft <= 0) lose();
     else win(guesses.length === 1, guesses.length === MAX_ATTEMPTS);
   } else {
-    elements.message().textContent = "Your turn! Make your guess below.";
+    elements.message().textContent = "Your turn! Pick a player and press Guess.";
     elements.message().className = 'message';
     hideCoopBanner();
   }
