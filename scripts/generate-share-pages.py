@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
-"""Emit static share/* landing pages with Open Graph tags (crawlers do not run JS)."""
+"""Emit static share/* landing pages with Open Graph tags.
+
+Link-preview crawlers often follow <meta refresh> or fetch <link rel="canonical">
+targets; both pointed at /?sport=… which serves index.html (ALL SPORTS og:image).
+Use canonical=self, no meta refresh, and JS-only redirect so HTML-only fetches
+keep league-specific og:image.
+"""
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -65,12 +71,12 @@ def page_html(sport: str, display: str, desc: str) -> str:
   <meta name="twitter:title" content="{esc(og_title)}">
   <meta name="twitter:description" content="{esc(desc)}">
   <meta name="twitter:image" content="{esc(og_img)}">
-  <link rel="canonical" href="{esc(dest)}">
-  <meta http-equiv="refresh" content="0;url={esc(dest)}">
+  <link rel="canonical" href="{esc(url)}">
   <meta name="theme-color" content="#0d1117">
 </head>
 <body style="margin:0;background:#0d1117;color:#c9d1d9;font-family:system-ui,sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;text-align:center;padding:1.5rem">
-  <p style="max-width:28rem;line-height:1.5">Opening <strong>Pick Six</strong> ({esc(display)})…<br><a href="{esc(dest)}" style="color:#58a6ff">Tap here if you are not redirected</a></p>
+  <p style="max-width:28rem;line-height:1.5">Opening <strong>Pick Six</strong> ({esc(display)})…<br><a href="{esc(dest)}" style="color:#58a6ff">Continue to the game</a></p>
+  <script>location.replace("{esc(dest)}");</script>
 </body>
 </html>
 """
