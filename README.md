@@ -7,7 +7,6 @@ A wordle-style game where you guess an MLB player from ESPN's Top 100 list (2026
 1. **Guess a player** — Type a player name (autocomplete shows who's in the pool).
 2. **First try correct** — You'll see a special message.
 3. **Wrong guess** — The game shows what the answer has in common with your guess (League, Division, Position, Age, Number).
-4. **Bonus clue** — Use the button to reveal a 2025 season stat (AVG/HR/RBI for hitters, ERA/K for pitchers).
 
 ## Run locally
 

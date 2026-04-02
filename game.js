@@ -3,6 +3,7 @@
 
 const MAX_ATTEMPTS = 6;
 const ROUND_SIZES = [25, 50, 75, 100, 125, 150];
+const MAX_SESSION_SCORE = ROUND_SIZES.length * 10;
 
 const SPORTS = {
   mlb: {
@@ -104,12 +105,37 @@ let legendsMode = false;
 let currentRound = 1;
 let coopMode = false;
 let coopSeed = null;
+/** Wall-clock when the round became playable (after startGame / startCoopGame). */
+let roundStartTime = 0;
+/** Timestamp of each submitted guess (local play). */
+let guessSubmitTimes = [];
+/** Per-guess durations (ms) restored from coop links; overrides recomputation when set. */
+let coopGuessDeltasMs = null;
+/** Scores for each completed round in the current run (win or loss). */
+let sessionRoundScores = [];
 
 const $ = (sel, ctx = document) => ctx.querySelector(sel);
 const $$ = (sel, ctx = document) => [...ctx.querySelectorAll(sel)];
 
 function isTouchDevice() {
   return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+}
+
+function resetSessionRoundScores() {
+  sessionRoundScores = [];
+}
+
+function getSessionTotalScore() {
+  return sessionRoundScores.reduce((a, b) => a + b, 0);
+}
+
+function finalScorePanelHtml() {
+  const total = getSessionTotalScore();
+  return `<div class="final-score-panel">
+    <p class="final-score-headline">Final score</p>
+    <p class="final-score-line">${total.toFixed(2)} <span class="final-score-max">/ ${MAX_SESSION_SCORE}</span></p>
+    <div class="final-score-share-slot" aria-hidden="true"></div>
+  </div>`;
 }
 
 let timerInterval = null;
@@ -150,6 +176,9 @@ const elements = {
   gameOver: () => $('#gameOver'),
   gameOverTitle: () => $('#gameOverTitle'),
   gameOverText: () => $('#gameOverText'),
+  finalScoreBanner: () => $('#finalScoreBanner'),
+  finalScoreLine: () => $('#finalScoreLine'),
+  finalScoreShareSlot: () => $('#finalScoreShareSlot'),
   playAgainBtn: () => $('#playAgainBtn'),
   streak: () => $('#streak'),
   sportIcon: () => $('#sportIcon'),
@@ -184,6 +213,25 @@ function getAnswerFromSeed(playersList, seed) {
   return playersList[idx];
 }
 
+function getGuessDeltasMs() {
+  if (coopGuessDeltasMs && coopGuessDeltasMs.length === guesses.length) {
+    return coopGuessDeltasMs;
+  }
+  if (!guesses.length) return [];
+  if (!guessSubmitTimes.length || !roundStartTime) {
+    return guesses.map(() => 25000);
+  }
+  if (guessSubmitTimes.length !== guesses.length) {
+    return guesses.map(() => 25000);
+  }
+  const deltas = [];
+  deltas.push(guessSubmitTimes[0] - roundStartTime);
+  for (let i = 1; i < guessSubmitTimes.length; i++) {
+    deltas.push(guessSubmitTimes[i] - guessSubmitTimes[i - 1]);
+  }
+  return deltas;
+}
+
 function encodeCoopState() {
   const state = {
     s: currentSport,
@@ -193,6 +241,7 @@ function encodeCoopState() {
     rc: [...revealedCriteria],
     rq: { ...revealedQuality },
     b: bonusClueUnlocked,
+    gd: getGuessDeltasMs(),
   };
   const json = JSON.stringify(state);
   return btoa(String.fromCharCode(...new TextEncoder().encode(json)));
@@ -285,6 +334,11 @@ function applyCoopState(state) {
     Object.keys(revealedQuality).filter(k => revealedQuality[k] === 'full')
   );
   bonusClueUnlocked = state.b || false;
+  guessSubmitTimes = [];
+  coopGuessDeltasMs = Array.isArray(state.gd) ? state.gd : null;
+  if (coopGuessDeltasMs && coopGuessDeltasMs.length !== guesses.length) {
+    coopGuessDeltasMs = null;
+  }
   attemptsLeft = MAX_ATTEMPTS - guesses.length;
   coopMode = true;
 
@@ -298,6 +352,7 @@ function startCoopGame() {
     clearInterval(timerInterval);
     timerInterval = null;
   }
+  resetSessionRoundScores();
   coopMode = true;
   coopSeed = Math.floor(Math.random() * 0x7fffffff);
   currentSport = currentSport || 'nfl';
@@ -307,6 +362,8 @@ function startCoopGame() {
   attemptsLeft = MAX_ATTEMPTS;
   bonusClueUnlocked = false;
   guesses = [];
+  guessSubmitTimes = [];
+  coopGuessDeltasMs = null;
   revealedCriteria.clear();
   exactRevealedCriteria.clear();
   revealedQuality = {};
@@ -340,7 +397,8 @@ function startCoopGame() {
   elements.guessSelect().value = '';
   elements.guessSelect().disabled = false;
   elements.guessBtn().disabled = false;
-  elements.bonusClueBtn().disabled = bonusClueUnlocked;
+  const bonusBtn = elements.bonusClueBtn();
+  if (bonusBtn) bonusBtn.disabled = bonusClueUnlocked;
   elements.bonusClue().classList.toggle('hidden', !bonusClueUnlocked);
   elements.bonusClue().classList.toggle('revealed', bonusClueUnlocked);
   elements.bonusClue().textContent = bonusClueUnlocked ? formatBonusClue() : '';
@@ -350,6 +408,7 @@ function startCoopGame() {
   elements.timer().textContent = '—';
   elements.gameOver().classList.add('hidden');
 
+  roundStartTime = Date.now();
   updateRoundDisplay();
   hideCoopBanner();
   history.replaceState(null, '', getCoopLink());
@@ -400,7 +459,8 @@ function loadCoopFromHash() {
   elements.guessSelect().value = '';
   elements.guessSelect().disabled = false;
   elements.guessBtn().disabled = false;
-  elements.bonusClueBtn().disabled = bonusClueUnlocked;
+  const bonusBtn = elements.bonusClueBtn();
+  if (bonusBtn) bonusBtn.disabled = bonusClueUnlocked;
   elements.bonusClue().classList.toggle('hidden', !bonusClueUnlocked);
   elements.bonusClue().classList.toggle('revealed', bonusClueUnlocked);
   elements.bonusClue().textContent = bonusClueUnlocked ? formatBonusClue() : '';
@@ -579,11 +639,11 @@ function updateStreakDisplay() {
   const streak = getStreak(currentSport);
   elements.streak().textContent = streak > 0 ? '🏆'.repeat(streak) : '';
   if (streak > 0) {
-    const sportLabels = { mlb: 'MLB', golf: 'golf', nba: 'NBA', nfl: 'NFL' };
+    const sportLabels = { mlb: 'MLB', golf: 'golf', nba: 'NBA', nfl: 'NFL', nhl: 'NHL', all: 'All sports' };
     const sportLabel = sportLabels[currentSport] || 'MLB';
-    elements.streak().ariaLabel = `${streak} win streak in ${sportLabel}`;
+    elements.streak().ariaLabel = `${streak} full game${streak !== 1 ? 's' : ''} completed in ${sportLabel}`;
   } else {
-    elements.streak().ariaLabel = 'Win streak';
+    elements.streak().ariaLabel = 'Full games completed (all 6 rounds)';
   }
 }
 
@@ -1088,6 +1148,8 @@ function startGame() {
   attemptsLeft = MAX_ATTEMPTS;
   bonusClueUnlocked = false;
   guesses = [];
+  guessSubmitTimes = [];
+  coopGuessDeltasMs = null;
   gameStartTime = null;
   filtersUsedThisGame = false;
   if (currentSport === 'mlb') {
@@ -1125,7 +1187,8 @@ function startGame() {
   elements.guessSelect().value = '';
   elements.guessSelect().disabled = false;
   elements.guessBtn().disabled = false;
-  elements.bonusClueBtn().disabled = false;
+  const bonusBtnReset = elements.bonusClueBtn();
+  if (bonusBtnReset) bonusBtnReset.disabled = false;
   elements.bonusClue().classList.add('hidden');
   elements.bonusClue().classList.remove('revealed');
   elements.bonusClue().textContent = '';
@@ -1134,7 +1197,9 @@ function startGame() {
   elements.attempts().textContent = attemptsLeft;
   elements.timer().textContent = '—';
   elements.gameOver().classList.add('hidden');
+  elements.finalScoreBanner()?.classList.add('hidden');
 
+  roundStartTime = Date.now();
   updateRoundDisplay();
   if (!isTouchDevice()) elements.guessSelect().focus();
 }
@@ -1168,55 +1233,124 @@ function unlockBonusClue() {
   elements.bonusClue().textContent = formatBonusClue();
   elements.bonusClue().classList.remove('hidden');
   elements.bonusClue().classList.add('revealed');
-  elements.bonusClueBtn().disabled = true;
+  const bonusBtnOff = elements.bonusClueBtn();
+  if (bonusBtnOff) bonusBtnOff.disabled = true;
 }
 
 function calculateScore(won) {
   return getScoreBreakdown(won).score;
 }
 
+function hashStringToUnit(s) {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return (h >>> 0) / 4294967296;
+}
+
+function scoreSeedString(won) {
+  const deltas = getGuessDeltasMs().map(d => Math.round(d));
+  const rq = Object.keys(revealedQuality).sort().map(k => `${k}:${revealedQuality[k]}`).join(',');
+  return [
+    answer?.name || '',
+    currentSport,
+    guesses.join('|'),
+    String(guesses.length),
+    deltas.join(','),
+    rq,
+    won ? 'w' : 'l',
+  ].join('~');
+}
+
+function roundScore2(x) {
+  return Math.round(Math.min(10, Math.max(1, x)) * 100) / 100;
+}
+
+/** Only a 1-guess win can be 10. Max drops 0.5 per extra guess (2nd try cap 9.50, 3rd 9.00, …). */
+function maxWinScoreForGuessCount(n) {
+  if (n <= 1) return 10;
+  return Math.round((10 - 0.5 * (n - 1)) * 100) / 100;
+}
+
+function fmt2(x) {
+  return Math.round(x * 100) / 100;
+}
+
+function applyScoreJitter(base, won) {
+  const u = hashStringToUnit(scoreSeedString(won));
+  return base + (u - 0.5) * 0.14;
+}
+
 function getScoreBreakdown(won) {
-  const noFilterBonus = getSportConfig().hasFilters ? (legendsMode || !filtersUsedThisGame ? 15 : 0) : 15;
   const lines = [];
-  let score;
+  const cfg = getSportConfig();
+  const n = guesses.length;
+  const deltas = getGuessDeltasMs();
+
+  const filterPenaltyApplied =
+    cfg.hasFilters && !legendsMode && filtersUsedThisGame;
 
   if (won) {
-    const elapsed = gameStartTime ? (Date.now() - gameStartTime) / 1000 : 0;
-    const guessPenalty = (guesses.length - 1) * 12;
-    const timePenalty = Math.min(20, Math.floor(elapsed / 4));
-    score = 100 - guessPenalty - timePenalty + noFilterBonus;
-    const max = legendsMode ? 100 : 89;
-    score = Math.round(Math.max(61, Math.min(max, score)));
-
-    lines.push({ label: 'Base score', value: 100 });
-    if (guessPenalty > 0) lines.push({ label: `${guesses.length - 1} extra guess${guesses.length > 2 ? 'es' : ''}`, value: -guessPenalty });
-    if (timePenalty > 0) lines.push({ label: 'Time penalty (slower = more lost)', value: -timePenalty });
-    else lines.push({ label: 'Fast finish — no time penalty', value: null });
-    if (noFilterBonus > 0) lines.push({ label: 'No filters used', value: noFilterBonus });
-    if (!legendsMode && score >= 89) {
-      lines.push({ label: 'Capped (Legends Mode required for 90+)', value: null });
+    if (n === 1) {
+      let score = 10;
+      if (filterPenaltyApplied) {
+        score = 9;
+      }
+      lines.push({ label: 'Perfect round (1 guess)', value: null });
+      if (filterPenaltyApplied) {
+        lines.push({ label: 'Filters used', value: -1 });
+      }
+      lines.push({ label: 'Round score', value: score });
+      return { score, lines };
     }
-  } else {
-    const base = 5;
-    let fullCount = 0, closeCount = 0, farCount = 0;
-    for (const key of revealedCriteria) {
-      const q = revealedQuality[key] || 'full';
-      if (q === 'full') fullCount++;
-      else if (q === 'close') closeCount++;
-      else farCount++;
-    }
-    const revealedBonus = fullCount * 10 + closeCount * 2;
-    score = base + revealedBonus + noFilterBonus;
-    score = Math.round(Math.max(1, Math.min(60, score)));
 
-    lines.push({ label: 'Base (loss)', value: base });
-    if (fullCount > 0) lines.push({ label: `${fullCount} clue${fullCount !== 1 ? 's' : ''} exact`, value: fullCount * 10 });
-    if (closeCount > 0) lines.push({ label: `${closeCount} close (orange)`, value: closeCount * 2 });
-    if (farCount > 0) lines.push({ label: `${farCount} far (red) — no points`, value: null });
-    if (noFilterBonus > 0) lines.push({ label: 'No filters used', value: noFilterBonus });
-    lines.push({ label: 'Max score on loss', value: '(capped at 60)' });
+    const extraGuesses = n - 1;
+    let guessPenalty = 0;
+    for (let i = 0; i < extraGuesses; i++) {
+      guessPenalty += 0.52 + i * 0.1;
+    }
+
+    let timePenalty = 0;
+    deltas.forEach((d, idx) => {
+      const sec = Math.max(0.05, d / 1000);
+      const w = 0.016 + idx * 0.0045;
+      timePenalty += w * Math.pow(sec, 0.55);
+    });
+
+    let raw = 10 - guessPenalty - timePenalty;
+
+    if (filterPenaltyApplied) {
+      raw -= 1;
+    }
+
+    raw = applyScoreJitter(raw, true);
+    let score = roundScore2(raw);
+    const ceiling = maxWinScoreForGuessCount(n);
+    score = Math.min(score, ceiling);
+    score = Math.round(Math.min(10, Math.max(1, score)) * 100) / 100;
+
+    lines.push({ label: 'Starting from', value: 10 });
+    if (guessPenalty > 0) {
+      lines.push({
+        label: `${extraGuesses} miss${extraGuesses !== 1 ? 'es' : ''} before correct`,
+        value: -fmt2(guessPenalty),
+      });
+    }
+    if (timePenalty > 0) {
+      lines.push({ label: 'Time across guesses (slower = lower)', value: -fmt2(timePenalty) });
+    }
+    if (filterPenaltyApplied) {
+      lines.push({ label: 'Filters used', value: -1 });
+    }
+    lines.push({ label: `Round score (max ${ceiling.toFixed(2)} for ${n} guesses)`, value: score });
+    return { score, lines };
   }
 
+  const score = 0;
+  lines.push({ label: 'Wrong answer — no points this round', value: null });
+  lines.push({ label: 'Round score', value: score });
   return { score, lines };
 }
 
@@ -1225,8 +1359,8 @@ function showScoreBreakdown(won) {
   const content = $('#scoreBreakdownContent');
   const overlay = $('#scoreBreakdownOverlay');
   if (!content || !overlay) return;
-  content.innerHTML = `<p class="score-breakdown-total">Final: ${score}</p><ul class="score-breakdown-list">` +
-    lines.map(l => `<li>${escapeHtml(l.label)}${l.value !== null ? ` <span class="score-breakdown-value">${l.value > 0 ? '+' : ''}${l.value}</span>` : ''}</li>`).join('') +
+  content.innerHTML = `<p class="score-breakdown-total">Final: ${typeof score === 'number' ? score.toFixed(2) : escapeHtml(String(score))}</p><ul class="score-breakdown-list">` +
+    lines.map(l => `<li>${escapeHtml(l.label)}${l.value !== null ? ` <span class="score-breakdown-value">${typeof l.value === 'number' ? l.value.toFixed(2) : escapeHtml(String(l.value))}</span>` : ''}</li>`).join('') +
     '</ul>';
   overlay.classList.remove('hidden');
   overlay.addEventListener('click', function onOverlayClick(e) {
@@ -1240,14 +1374,19 @@ function showScoreBreakdown(won) {
 
 function win(isFirstTry, isLastPick) {
   if (coopMode) hideCoopBanner();
-  setStreak(getStreak(currentSport) + 1, currentSport);
-  updateStreakDisplay();
+  if (currentRound === ROUND_SIZES.length) {
+    setStreak(getStreak(currentSport) + 1, currentSport);
+    updateStreakDisplay();
+  }
   stopTimer();
   elements.guessSelect().disabled = true;
   elements.guessBtn().disabled = true;
-  elements.bonusClueBtn().disabled = true;
+  const bonusBtnOff = elements.bonusClueBtn();
+  if (bonusBtnOff) bonusBtnOff.disabled = true;
 
   const score = calculateScore(true);
+  sessionRoundScores.push(score);
+  const scoreStr = score.toFixed(2);
   let msg;
   if (currentRound === ROUND_SIZES.length) {
     msg = pick(FULL_RUN_MSGS)(answer.name);
@@ -1260,7 +1399,8 @@ function win(isFirstTry, isLastPick) {
   }
   const legendsBadge = legendsMode ? '<span class="legends-badge">Legends Mode</span>' : '';
   const nextRoundLabel = currentRound < ROUND_SIZES.length ? 'Next round' : 'Play again';
-  elements.message().innerHTML = `${msg} ${legendsBadge} <span class="round-score score-clickable" role="button" tabindex="0" title="Click for breakdown">Score: ${score}</span> <button type="button" id="nextRoundBtn" class="secondary small">${escapeHtml(nextRoundLabel)}</button><div class="answer-summary">${formatAnswerSummary()}</div>`;
+  const finalBlock = currentRound === ROUND_SIZES.length ? finalScorePanelHtml() : '';
+  elements.message().innerHTML = `${msg} ${legendsBadge} <span class="round-score score-clickable" role="button" tabindex="0" title="Click for breakdown">Score: ${scoreStr}</span> ${finalBlock} <button type="button" id="nextRoundBtn" class="secondary small">${escapeHtml(nextRoundLabel)}</button><div class="answer-summary">${formatAnswerSummary()}</div>`;
   elements.message().className = 'message ' + (isFirstTry ? 'first-try' : 'win');
   $('#nextRoundBtn')?.addEventListener('click', () => {
     if (currentRound < ROUND_SIZES.length) currentRound++;
@@ -1275,12 +1415,20 @@ function lose() {
   stopTimer();
   elements.guessSelect().disabled = true;
   elements.guessBtn().disabled = true;
-  elements.bonusClueBtn().disabled = true;
+  const bonusBtnOff = elements.bonusClueBtn();
+  if (bonusBtnOff) bonusBtnOff.disabled = true;
 
   const score = calculateScore(false);
+  sessionRoundScores.push(score);
+  const scoreStr = score.toFixed(2);
+  const sessionTotal = getSessionTotalScore();
   elements.gameOver().classList.remove('hidden');
   elements.gameOverTitle().textContent = 'Game over';
-  elements.gameOverText().innerHTML = `The answer was <strong>${answer.name}</strong><div class="answer-summary">${formatAnswerSummary()}</div><span class="round-score score-clickable" role="button" tabindex="0" title="Click for breakdown">Score: ${score}</span>`;
+  elements.gameOverText().innerHTML = `The answer was <strong>${answer.name}</strong><div class="answer-summary">${formatAnswerSummary()}</div><span class="round-score score-clickable" role="button" tabindex="0" title="Click for breakdown">Round score: ${scoreStr}</span>`;
+  const line = elements.finalScoreLine();
+  const banner = elements.finalScoreBanner();
+  if (line) line.innerHTML = `${sessionTotal.toFixed(2)} <span class="final-score-max">/ ${MAX_SESSION_SCORE}</span>`;
+  if (banner) banner.classList.remove('hidden');
   elements.playAgainBtn().focus();
 }
 
@@ -1293,7 +1441,13 @@ function handleGuess() {
   }
 
   const guessed = findPlayer(raw);
-  if (!guessed) return;
+  if (!guessed) {
+    elements.message().textContent = 'That name is not in the list. Pick a player from the dropdown.';
+    elements.message().className = 'message error';
+    return;
+  }
+
+  guessSubmitTimes.push(Date.now());
 
   if (guesses.length === 0) {
     gameStartTime = Date.now();
@@ -1373,6 +1527,7 @@ function switchSport(sport) {
   if (coopMode) return;
   currentSport = sport;
   currentRound = 1;
+  resetSessionRoundScores();
   startGame();
 }
 
@@ -1386,6 +1541,7 @@ function init() {
   updateStreakDisplay();
   showSportUI();
 
+  resetSessionRoundScores();
   if (!loadCoopFromHash()) startGame();
 
   $$('.sport-tab').forEach(tab => {
@@ -1414,17 +1570,29 @@ function init() {
   });
   elements.nhlTeamFilter()?.addEventListener('change', populateSelect);
   elements.allSportFilter()?.addEventListener('change', populateSelect);
-  elements.guessBtn().addEventListener('click', handleGuess);
+  document.body.addEventListener('click', (e) => {
+    const el = e.target instanceof Element ? e.target : e.target.parentElement;
+    if (!el?.closest?.('#guessBtn')) return;
+    handleGuess();
+  });
   elements.guessSelect().addEventListener('keydown', (e) => {
     if (e.key === 'Enter') handleGuess();
   });
-  elements.bonusClueBtn().addEventListener('click', unlockBonusClue);
+  elements.bonusClueBtn()?.addEventListener('click', unlockBonusClue);
   elements.playAgainBtn().addEventListener('click', () => {
     if (currentRound < ROUND_SIZES.length) currentRound++;
     startGame();
   });
   elements.newGameBtn().addEventListener('click', () => {
+    if (
+      sessionRoundScores.length > 0 &&
+      sessionRoundScores.length < ROUND_SIZES.length
+    ) {
+      setStreak(0, currentSport);
+      updateStreakDisplay();
+    }
     currentRound = 1;
+    resetSessionRoundScores();
     startGame();
   });
   elements.playWithFriendBtn()?.addEventListener('click', showCoopGoFirstModal);
@@ -1452,6 +1620,7 @@ function init() {
     coopSeed = null;
     history.replaceState(null, '', location.pathname);
     hideCoopBanner();
+    resetSessionRoundScores();
     startGame();
   });
   $('#helpBtn')?.addEventListener('click', () => {
@@ -1465,7 +1634,9 @@ function init() {
     $('#helpBtn')?.focus();
   });
   document.addEventListener('click', (e) => {
-    if (!e.target.closest('.score-clickable')) return;
+    const t = e.target;
+    const el = t instanceof Element ? t : t.parentElement;
+    if (!el?.closest?.('.score-clickable')) return;
     const inGameOver = elements.gameOver() && !elements.gameOver().classList.contains('hidden');
     showScoreBreakdown(!inGameOver);
   });

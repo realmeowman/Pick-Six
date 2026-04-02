@@ -10,7 +10,8 @@
   gtag('config', 'G-Y5S0FFK1SW');
 </script>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0d1117">
   <title>Pick Six – You Think You Know Ball? Prove It.</title>
   <meta name="description" content="Pick Six is the sports guessing game that exposes fake NFL, NBA, MLB, and golf sickos. Six clues, six guesses, six rounds from easy layups to “how did you even know that guy?”">
   <meta property="og:title" content="Pick Six – You Think You Know Ball? Prove It.">
@@ -168,10 +169,8 @@
         </div>
       </section>
 
-      <section class="bonus-section">
-        <button id="bonusClueBtn" type="button" class="secondary">
-          Unlock bonus clue
-        </button>
+      <!-- Bonus clue button removed; #bonusClue + formatBonusClue() in game.js kept to re-enable later. -->
+      <section class="bonus-section hidden" aria-hidden="true">
         <div id="bonusClue" class="bonus-clue hidden"></div>
       </section>
 
@@ -378,6 +377,11 @@
       <section class="game-over hidden" id="gameOver">
         <h2 id="gameOverTitle"></h2>
         <p id="gameOverText"></p>
+        <div class="final-score-banner hidden" id="finalScoreBanner">
+          <p class="final-score-headline">Final score</p>
+          <p class="final-score-line" id="finalScoreLine"></p>
+          <div class="final-score-share-slot" id="finalScoreShareSlot" aria-hidden="true"></div>
+        </div>
         <button id="playAgainBtn" type="button">Start new game</button>
       </section>
     </main>

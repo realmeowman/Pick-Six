@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Preview — Final score UI (Pick Six)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .preview-note {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-bottom: 1.5rem;
+      padding: 0.75rem 1rem;
+      background: var(--surface);
+      border: 1px dashed var(--border);
+      border-radius: 8px;
+    }
+    .preview-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--accent);
+      margin: 2rem 0 0.75rem;
+    }
+    .preview-label:first-of-type { margin-top: 0; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <p class="preview-note">
+      Static preview of the final score blocks — same CSS as the live game. Open this file from the project folder (or <code>http://localhost:8000/preview-final-score.html</code> if you use a local server). Safe to delete when you’re done reviewing.
+    </p>
+
+    <p class="preview-label">Game over (lost a round)</p>
+    <section class="game-over" id="previewGameOver">
+      <h2>Game over</h2>
+      <p>The answer was <strong>Patrick Mahomes</strong></p>
+      <div class="answer-summary" style="margin: 1rem 0; text-align: left;">
+        <span class="answer-summary-item">Conference: AFC</span> ·
+        <span class="answer-summary-item">Division: West</span> · …
+      </div>
+      <p><span class="round-score">Round score: 0.00</span></p>
+      <div class="final-score-banner">
+        <p class="final-score-headline">Final score</p>
+        <p class="final-score-line">42.35 <span class="final-score-max">/ 60</span></p>
+        <div class="final-score-share-slot" aria-hidden="true"></div>
+      </div>
+      <button type="button" id="playAgainBtnPreview" class="primary" style="background: var(--accent); color: var(--bg);">Start new game</button>
+    </section>
+
+    <p class="preview-label">Round 6 win (full run — in-message panel)</p>
+    <section class="feedback-section">
+      <div id="message" class="message win">
+        You cleared the gauntlet. Every round. The mystery players never stood a chance. The answer was Justin Jefferson.
+        <span class="round-score score-clickable" role="button" tabindex="0">Score: 8.75</span>
+        <div class="final-score-panel">
+          <p class="final-score-headline">Final score</p>
+          <p class="final-score-line">52.80 <span class="final-score-max">/ 60</span></p>
+          <div class="final-score-share-slot" aria-hidden="true"></div>
+        </div>
+        <button type="button" class="secondary small">Play again</button>
+        <div class="answer-summary">Answer summary…</div>
+      </div>
+    </section>
+  </div>
+</body>
+</html>
