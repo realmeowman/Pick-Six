@@ -46,11 +46,17 @@
       <button type="button" class="sport-tab" data-sport="nba" role="tab" aria-selected="false">NBA</button>
       <button type="button" class="sport-tab" data-sport="mlb" role="tab" aria-selected="false">MLB</button>
       <button type="button" class="sport-tab" data-sport="nhl" role="tab" aria-selected="false">NHL</button>
+      <button type="button" class="sport-tab" data-sport="football" role="tab" aria-selected="false">Football</button>
       <button type="button" class="sport-tab" data-sport="golf" role="tab" aria-selected="false">Golf</button>
       <button type="button" class="sport-tab" data-sport="all" role="tab" aria-selected="false">All</button>
     </nav>
     <header>
-      <h1>Pick Six <span id="sportIcon" class="header-sport-icon" aria-hidden="true">⚾</span></h1>
+      <h1>
+        <span class="h1-row">
+          <span class="h1-title">Pick Six</span>
+          <span id="sportIcon" class="header-sport-icon" aria-hidden="true">⚾</span>
+        </span>
+      </h1>
       <p class="tagline" id="tagline">Find the mystery player using 6 clues. 6 guesses.</p>
       <div class="header-meta">
         <p class="round" id="roundLabel">Round 1</p>
@@ -146,6 +152,20 @@
               </select>
             </div>
           </div>
+          <div class="filters-football hidden" id="filtersFootball">
+            <div class="filter-pair">
+              <label for="footballLeagueFilter">League</label>
+              <select id="footballLeagueFilter">
+                <option value="">All</option>
+              </select>
+            </div>
+            <div class="filter-pair">
+              <label for="footballClubFilter">Club</label>
+              <select id="footballClubFilter">
+                <option value="">All</option>
+              </select>
+            </div>
+          </div>
           <div class="filters-all hidden" id="filtersAll">
             <div class="filter-pair">
               <label for="allSportFilter">Sport</label>
@@ -155,6 +175,7 @@
                 <option value="NBA">NBA</option>
                 <option value="MLB">MLB</option>
                 <option value="NHL">NHL</option>
+                <option value="FOOTBALL">Football</option>
                 <option value="GOLF">Golf</option>
               </select>
             </div>
@@ -336,6 +357,38 @@
             <div class="clue-hidden"><span class="sport-icon" aria-hidden="true">🏒</span></div>
           </div>
         </div>
+        <div class="clue-grid clue-grid-football hidden" id="clueGridFootball">
+          <div class="clue-slot" data-key="league">
+            <span class="clue-label">League</span>
+            <div class="clue-value hidden"><span class="value-text"></span></div>
+            <div class="clue-hidden"><span class="sport-icon" aria-hidden="true">⚽</span></div>
+          </div>
+          <div class="clue-slot" data-key="club">
+            <span class="clue-label">Club</span>
+            <div class="clue-value hidden"><span class="value-text"></span></div>
+            <div class="clue-hidden"><span class="sport-icon" aria-hidden="true">⚽</span></div>
+          </div>
+          <div class="clue-slot" data-key="country">
+            <span class="clue-label">Country</span>
+            <div class="clue-value hidden"><span class="value-text"></span></div>
+            <div class="clue-hidden"><span class="sport-icon" aria-hidden="true">⚽</span></div>
+          </div>
+          <div class="clue-slot" data-key="position">
+            <span class="clue-label">Position</span>
+            <div class="clue-value hidden"><span class="value-text"></span></div>
+            <div class="clue-hidden"><span class="sport-icon" aria-hidden="true">⚽</span></div>
+          </div>
+          <div class="clue-slot" data-key="height">
+            <span class="clue-label">Height</span>
+            <div class="clue-value hidden"><span class="value-text"></span></div>
+            <div class="clue-hidden"><span class="sport-icon" aria-hidden="true">⚽</span></div>
+          </div>
+          <div class="clue-slot" data-key="trophies">
+            <span class="clue-label">Trophies</span>
+            <div class="clue-value hidden"><span class="value-text"></span></div>
+            <div class="clue-hidden"><span class="sport-icon" aria-hidden="true">⚽</span></div>
+          </div>
+        </div>
         <div class="clue-grid clue-grid-all hidden" id="clueGridAll">
           <div class="clue-slot" data-key="sport">
             <span class="clue-label">Sport</span>
@@ -439,6 +492,7 @@
   <script src="nba-data.js" defer></script>
   <script src="nfl-data.js" defer></script>
   <script src="nhl-data.js" defer></script>
+  <script src="football-data.js" defer></script>
   <script src="game.js" defer></script>
 </body>
 </html>

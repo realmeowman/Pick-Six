@@ -1,4 +1,5 @@
 :root {
+  --safe-pad-inline: max(1rem, env(safe-area-inset-left, 0px), env(safe-area-inset-right, 0px));
   --bg: #0d1117;
   --surface: #161b22;
   --surface-light: #21262d;
@@ -26,9 +27,9 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
-  /* Mobile-first: safe areas (notch / home indicator) + readable edge padding */
-  padding: max(1rem, env(safe-area-inset-top, 0px)) max(1rem, env(safe-area-inset-right, 0px))
-    max(1rem, env(safe-area-inset-bottom, 0px)) max(1rem, env(safe-area-inset-left, 0px));
+  /* Symmetric horizontal insets so content isn’t shifted on notched phones */
+  padding: max(1rem, env(safe-area-inset-top, 0px)) var(--safe-pad-inline)
+    max(1rem, env(safe-area-inset-bottom, 0px)) var(--safe-pad-inline);
   touch-action: manipulation;
 }
 
@@ -49,13 +50,34 @@ body {
 header {
   text-align: center;
   margin-bottom: 2rem;
+  width: 100%;
 }
 
 h1 {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  margin: 0;
+}
+
+/* Keeps “Pick Six” + icon as one centered cluster (title styling unchanged) */
+.h1-row {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  max-width: 100%;
+}
+
+.h1-title {
   font-family: 'Bebas Neue', sans-serif;
   font-size: 2.5rem;
   letter-spacing: 0.08em;
   color: var(--text);
+  line-height: 1.05;
+  padding-inline: 0.06em;
+  white-space: nowrap;
 }
 
 .tagline {
@@ -65,9 +87,11 @@ h1 {
 }
 
 .header-sport-icon {
-  font-size: 1.4rem;
-  margin-left: 0.25rem;
-  vertical-align: middle;
+  font-size: 1.45rem;
+  line-height: 1;
+  margin: 0;
+  letter-spacing: normal;
+  flex-shrink: 0;
 }
 
 .header-meta {
@@ -77,6 +101,7 @@ h1 {
   justify-content: center;
   gap: 1rem;
   margin-top: 1rem;
+  width: 100%;
 }
 
 .round,
@@ -137,7 +162,8 @@ button.small {
 .filters-golf,
 .filters-nba,
 .filters-nfl,
-.filters-nhl {
+.filters-nhl,
+.filters-football {
   display: flex;
   align-items: center;
   gap: 0.75rem;
@@ -422,7 +448,10 @@ button:active {
   display: flex;
   gap: 0.35rem;
   margin-bottom: 1.5rem;
-  padding: 0.25rem;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 0.25rem 0.35rem;
+  max-width: 100%;
   background: var(--surface);
   border-radius: 10px;
   border: 1px solid var(--border);
@@ -558,8 +587,8 @@ button:active {
   align-items: center;
   justify-content: center;
   z-index: 40;
-  padding: max(1rem, env(safe-area-inset-top, 0px)) max(1rem, env(safe-area-inset-right, 0px))
-    max(1rem, env(safe-area-inset-bottom, 0px)) max(1rem, env(safe-area-inset-left, 0px));
+  padding: max(1rem, env(safe-area-inset-top, 0px)) var(--safe-pad-inline)
+    max(1rem, env(safe-area-inset-bottom, 0px)) var(--safe-pad-inline);
 }
 
 .help-overlay.hidden {
@@ -594,8 +623,8 @@ button:active {
   align-items: center;
   justify-content: center;
   z-index: 1000;
-  padding: max(1rem, env(safe-area-inset-top, 0px)) max(1rem, env(safe-area-inset-right, 0px))
-    max(1rem, env(safe-area-inset-bottom, 0px)) max(1rem, env(safe-area-inset-left, 0px));
+  padding: max(1rem, env(safe-area-inset-top, 0px)) var(--safe-pad-inline)
+    max(1rem, env(safe-area-inset-bottom, 0px)) var(--safe-pad-inline);
 }
 
 .score-breakdown-modal {
@@ -765,8 +794,8 @@ button:active {
   align-items: center;
   justify-content: center;
   z-index: 100;
-  padding: max(1rem, env(safe-area-inset-top, 0px)) max(1rem, env(safe-area-inset-right, 0px))
-    max(1rem, env(safe-area-inset-bottom, 0px)) max(1rem, env(safe-area-inset-left, 0px));
+  padding: max(1rem, env(safe-area-inset-top, 0px)) var(--safe-pad-inline)
+    max(1rem, env(safe-area-inset-bottom, 0px)) var(--safe-pad-inline);
 }
 
 .coop-modal-overlay.hidden {
