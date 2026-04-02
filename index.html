@@ -51,7 +51,7 @@
       <button type="button" class="sport-tab" data-sport="nba" role="tab" aria-selected="false">NBA</button>
       <button type="button" class="sport-tab" data-sport="mlb" role="tab" aria-selected="false">MLB</button>
       <button type="button" class="sport-tab" data-sport="nhl" role="tab" aria-selected="false">NHL</button>
-      <button type="button" class="sport-tab" data-sport="football" role="tab" aria-selected="false">Football</button>
+      <button type="button" class="sport-tab" data-sport="epl" role="tab" aria-selected="false">EPL</button>
       <button type="button" class="sport-tab" data-sport="golf" role="tab" aria-selected="false">Golf</button>
       <button type="button" class="sport-tab" data-sport="all" role="tab" aria-selected="false">All</button>
     </nav>
@@ -165,16 +165,10 @@
               </select>
             </div>
           </div>
-          <div class="filters-football hidden" id="filtersFootball">
+          <div class="filters-epl hidden" id="filtersEpl">
             <div class="filter-pair">
-              <label for="footballLeagueFilter">League</label>
-              <select id="footballLeagueFilter">
-                <option value="">All</option>
-              </select>
-            </div>
-            <div class="filter-pair">
-              <label for="footballClubFilter">Club</label>
-              <select id="footballClubFilter">
+              <label for="eplClubFilter">Club</label>
+              <select id="eplClubFilter">
                 <option value="">All</option>
               </select>
             </div>
@@ -188,7 +182,7 @@
                 <option value="NBA">NBA</option>
                 <option value="MLB">MLB</option>
                 <option value="NHL">NHL</option>
-                <option value="FOOTBALL">Football</option>
+                <option value="EPL">EPL</option>
                 <option value="GOLF">Golf</option>
               </select>
             </div>
@@ -370,12 +364,7 @@
             <div class="clue-hidden"><span class="sport-icon" aria-hidden="true">🏒</span></div>
           </div>
         </div>
-        <div class="clue-grid clue-grid-football hidden" id="clueGridFootball">
-          <div class="clue-slot" data-key="league">
-            <span class="clue-label">League</span>
-            <div class="clue-value hidden"><span class="value-text"></span></div>
-            <div class="clue-hidden"><span class="sport-icon" aria-hidden="true">⚽</span></div>
-          </div>
+        <div class="clue-grid clue-grid-epl hidden" id="clueGridEpl">
           <div class="clue-slot" data-key="club">
             <span class="clue-label">Club</span>
             <div class="clue-value hidden"><span class="value-text"></span></div>
@@ -398,6 +387,11 @@
           </div>
           <div class="clue-slot" data-key="trophies">
             <span class="clue-label">Trophies</span>
+            <div class="clue-value hidden"><span class="value-text"></span></div>
+            <div class="clue-hidden"><span class="sport-icon" aria-hidden="true">⚽</span></div>
+          </div>
+          <div class="clue-slot" data-key="age">
+            <span class="clue-label">Age</span>
             <div class="clue-value hidden"><span class="value-text"></span></div>
             <div class="clue-hidden"><span class="sport-icon" aria-hidden="true">⚽</span></div>
           </div>
@@ -505,7 +499,7 @@
   <script src="nba-data.js" defer></script>
   <script src="nfl-data.js" defer></script>
   <script src="nhl-data.js" defer></script>
-  <script src="football-data.js" defer></script>
+  <script src="epl-data.js" defer></script>
   <script src="game.js" defer></script>
 </body>
 </html>

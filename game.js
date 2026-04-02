@@ -72,20 +72,20 @@ const SPORTS = {
     closeThreshold: { height: 2, rings: 1 },
     hasFilters: true,
   },
-  football: {
-    key: 'football',
-    criteriaKeys: ['league', 'club', 'country', 'position', 'height', 'trophies'],
+  epl: {
+    key: 'epl',
+    criteriaKeys: ['club', 'country', 'position', 'height', 'trophies', 'age'],
     labels: {
-      league: 'League',
       club: 'Club',
       country: 'Country',
       position: 'Position',
       height: 'Height',
       trophies: 'Trophies',
+      age: 'Age',
     },
-    numericKeys: ['height', 'trophies'],
+    numericKeys: ['height', 'trophies', 'age'],
     lowerIsBetter: {},
-    closeThreshold: { height: 2, trophies: 4 },
+    closeThreshold: { height: 2, trophies: 4, age: 3 },
     hasFilters: true,
   },
   all: {
@@ -114,7 +114,8 @@ function getSportFromUrl() {
   try {
     const p = new URLSearchParams(location.search).get('sport');
     if (!p) return null;
-    const key = p.toLowerCase().trim();
+    let key = p.toLowerCase().trim();
+    if (key === 'football') key = 'epl';
     return isValidSportKey(key) ? key : null;
   } catch (_) {
     return null;
@@ -189,7 +190,7 @@ const elements = {
   clueGridNba: () => $('#clueGridNba'),
   clueGridNfl: () => $('#clueGridNfl'),
   clueGridNhl: () => $('#clueGridNhl'),
-  clueGridFootball: () => $('#clueGridFootball'),
+  clueGridEpl: () => $('#clueGridEpl'),
   attempts: () => $('#attemptCount'),
   timer: () => $('#timer'),
   wrongGuessesList: () => $('#wrongGuessesList'),
@@ -204,7 +205,7 @@ const elements = {
   filtersNba: () => $('#filtersNba'),
   filtersNfl: () => $('#filtersNfl'),
   filtersNhl: () => $('#filtersNhl'),
-  filtersFootball: () => $('#filtersFootball'),
+  filtersEpl: () => $('#filtersEpl'),
   filtersAll: () => $('#filtersAll'),
   allSportFilter: () => $('#allSportFilter'),
   nbaConferenceFilter: () => $('#nbaConferenceFilter'),
@@ -213,8 +214,7 @@ const elements = {
   nflTeamFilter: () => $('#nflTeamFilter'),
   nhlConferenceFilter: () => $('#nhlConferenceFilter'),
   nhlTeamFilter: () => $('#nhlTeamFilter'),
-  footballLeagueFilter: () => $('#footballLeagueFilter'),
-  footballClubFilter: () => $('#footballClubFilter'),
+  eplClubFilter: () => $('#eplClubFilter'),
   gameOver: () => $('#gameOver'),
   gameOverTitle: () => $('#gameOverTitle'),
   gameOverText: () => $('#gameOverText'),
@@ -367,12 +367,18 @@ async function copyCoopLink() {
 }
 
 function applyCoopState(state) {
-  currentSport = state.s || currentSport;
+  let sport = state.s || currentSport;
+  if (sport === 'football') sport = 'epl';
+  currentSport = sport;
   currentRound = state.r || 1;
   coopSeed = state.e;
   guesses = state.g || [];
-  revealedCriteria = new Set(state.rc || []);
-  revealedQuality = state.rq || {};
+  const cfgKeys = new Set(getSportConfig().criteriaKeys);
+  revealedCriteria = new Set((state.rc || []).filter(k => cfgKeys.has(k)));
+  revealedQuality = { ...state.rq || {} };
+  Object.keys(revealedQuality).forEach(k => {
+    if (!cfgKeys.has(k)) delete revealedQuality[k];
+  });
   exactRevealedCriteria = new Set(
     Object.keys(revealedQuality).filter(k => revealedQuality[k] === 'full')
   );
@@ -433,10 +439,9 @@ function startCoopGame() {
     elements.nhlConferenceFilter().value = '';
     elements.nhlTeamFilter().value = '';
     populateNhlFilters();
-  } else if (currentSport === 'football') {
-    elements.footballLeagueFilter().value = '';
-    elements.footballClubFilter().value = '';
-    populateFootballFilters();
+  } else if (currentSport === 'epl') {
+    elements.eplClubFilter().value = '';
+    populateEplFilters();
   } else if (currentSport === 'all') {
     elements.allSportFilter().value = '';
   }
@@ -544,7 +549,7 @@ function getBasePlayers(sport = currentSport) {
   if (sport === 'nba' && typeof NBA_PLAYER_DATA !== 'undefined') return NBA_PLAYER_DATA;
   if (sport === 'nfl' && typeof NFL_PLAYER_DATA !== 'undefined') return NFL_PLAYER_DATA;
   if (sport === 'nhl' && typeof NHL_PLAYER_DATA !== 'undefined') return NHL_PLAYER_DATA;
-  if (sport === 'football' && typeof FOOTBALL_PLAYER_DATA !== 'undefined') return FOOTBALL_PLAYER_DATA;
+  if (sport === 'epl' && typeof EPL_PLAYER_DATA !== 'undefined') return EPL_PLAYER_DATA;
   return [];
 }
 
@@ -568,8 +573,8 @@ function deriveHandedness(name) {
 function deriveHeightInches(name, sportKey) {
   const h = stableHash32(`${sportKey}:${name}`);
   // Rough, non-cursed ranges to keep the UI sane.
-  const min = sportKey === 'golf' ? 66 : sportKey === 'mlb' ? 67 : sportKey === 'football' ? 66 : 68;
-  const max = sportKey === 'golf' ? 78 : sportKey === 'mlb' ? 79 : sportKey === 'football' ? 79 : 80;
+  const min = sportKey === 'golf' ? 66 : sportKey === 'mlb' ? 67 : sportKey === 'epl' ? 66 : 68;
+  const max = sportKey === 'golf' ? 78 : sportKey === 'mlb' ? 79 : sportKey === 'epl' ? 79 : 80;
   return min + (h % (max - min + 1));
 }
 
@@ -584,7 +589,7 @@ function deriveAgeYears(name, sportKey) {
 function getAllSportsAllocations(round) {
   const clampedRound = Math.max(1, Math.min(round, ROUND_SIZES.length));
   const size = ROUND_SIZES[clampedRound - 1];
-  const sportKeys = ['nfl', 'nba', 'mlb', 'nhl', 'golf', 'football'];
+  const sportKeys = ['nfl', 'nba', 'mlb', 'nhl', 'golf', 'epl'];
   const base = Math.floor(size / sportKeys.length);
   let remainder = size - base * sportKeys.length;
   const counts = {};
@@ -619,12 +624,12 @@ function buildAllSportsPlayersForRound(round) {
 
     slice.forEach((p, i) => {
       const rankIndex = start + i; // 0-based in that sport list
-      const teamOrCountry = sportKey === 'golf' ? p.country : sportKey === 'football' ? p.club : p.team;
+      const teamOrCountry = sportKey === 'golf' ? p.country : sportKey === 'epl' ? p.club : p.team;
       const posOrHand = sportKey === 'golf' ? deriveHandedness(p.name) : p.position;
       const height = (typeof p.height === 'number' && !isNaN(p.height)) ? p.height : deriveHeightInches(p.name, sportKey);
       const titles =
         sportKey === 'golf' ? (Number(p.majorWins) || 0) :
-        sportKey === 'football' ? (Number(p.trophies) || 0) :
+        sportKey === 'epl' ? (Number(p.trophies) || 0) :
         (typeof p.rings === 'number' ? p.rings : 0);
       const age =
         typeof p.age === 'number' && !isNaN(p.age) ? p.age : deriveAgeYears(p.name, sportKey);
@@ -645,22 +650,22 @@ function buildAllSportsPlayersForRound(round) {
   return out;
 }
 
-/** One player per league in rotation so early rounds include many leagues (not just the top of the file). */
-function buildFootballRoundPool(base, size) {
+/** One player per club in rotation so early rounds spread across EPL teams (not just file order). */
+function buildEplRoundPool(base, size) {
   if (base.length <= size) return base.slice();
-  const byLeague = {};
+  const byClub = {};
   for (const p of base) {
-    const L = p.league || '—';
-    if (!byLeague[L]) byLeague[L] = [];
-    byLeague[L].push(p);
+    const c = p.club || '—';
+    if (!byClub[c]) byClub[c] = [];
+    byClub[c].push(p);
   }
-  const leagues = Object.keys(byLeague).sort();
+  const clubs = Object.keys(byClub).sort();
   const out = [];
   while (out.length < size) {
     let addedInSweep = false;
-    for (const L of leagues) {
-      if (byLeague[L].length) {
-        out.push(byLeague[L].shift());
+    for (const c of clubs) {
+      if (byClub[c].length) {
+        out.push(byClub[c].shift());
         addedInSweep = true;
         if (out.length >= size) break;
       }
@@ -676,8 +681,8 @@ function getPlayersForRound(sport = currentSport, round = currentRound) {
   if (!base.length) return [];
   const clampedRound = Math.max(1, Math.min(round, ROUND_SIZES.length));
   const size = Math.min(ROUND_SIZES[clampedRound - 1], base.length);
-  if (sport === 'football') {
-    return buildFootballRoundPool(base, size);
+  if (sport === 'epl') {
+    return buildEplRoundPool(base, size);
   }
   return base.slice(0, size);
 }
@@ -691,7 +696,7 @@ function getClueGrid() {
   if (currentSport === 'nba') return elements.clueGridNba();
   if (currentSport === 'nfl') return elements.clueGridNfl();
   if (currentSport === 'nhl') return elements.clueGridNhl();
-  if (currentSport === 'football') return elements.clueGridFootball();
+  if (currentSport === 'epl') return elements.clueGridEpl();
   if (currentSport === 'all') return elements.clueGridAll();
   return elements.clueGridMlb();
 }
@@ -702,7 +707,7 @@ const STREAK_KEYS = {
   nba: 'pickSixStreak_nba',
   nfl: 'pickSixStreak_nfl',
   nhl: 'pickSixStreak_nhl',
-  football: 'pickSixStreak_football',
+  epl: 'pickSixStreak_epl',
 };
 
 function getStreakKey(sport = currentSport) {
@@ -725,7 +730,7 @@ function updateStreakDisplay() {
   const streak = getStreak(currentSport);
   elements.streak().textContent = streak > 0 ? '🏆'.repeat(streak) : '';
   if (streak > 0) {
-    const sportLabels = { mlb: 'MLB', golf: 'golf', nba: 'NBA', nfl: 'NFL', nhl: 'NHL', football: 'Football', all: 'All sports' };
+    const sportLabels = { mlb: 'MLB', golf: 'golf', nba: 'NBA', nfl: 'NFL', nhl: 'NHL', epl: 'EPL', all: 'All sports' };
     const sportLabel = sportLabels[currentSport] || 'MLB';
     elements.streak().ariaLabel = `${streak} full game${streak !== 1 ? 's' : ''} completed in ${sportLabel}`;
   } else {
@@ -739,7 +744,7 @@ const TAGLINES = {
   nba: 'Find the mystery hooper using 6 clues. 6 guesses.',
   nfl: 'Find the mystery player using 6 clues. 6 guesses.',
   nhl: 'Find the mystery skater using 6 clues. 6 guesses.',
-  football: 'Find the mystery footballer using 6 clues. 6 guesses.',
+  epl: 'Find the mystery Premier League player using 6 clues. 6 guesses.',
   all: 'All sports, one mystery athlete. 6 clues. 6 guesses.',
 };
 
@@ -749,7 +754,7 @@ const SPORT_ICONS = {
   nba: '🏀',
   nfl: '🏈',
   nhl: '🏒',
-  football: '⚽',
+  epl: '⚽',
   all: '🏆',
 };
 
@@ -759,7 +764,7 @@ function updateHeaderForSport() {
   }
   if (elements.sportIcon()) {
     elements.sportIcon().textContent = SPORT_ICONS[currentSport] || '⚾';
-    const ariaLabels = { mlb: 'MLB mode', golf: 'Golf mode', nba: 'NBA mode', nfl: 'NFL mode', nhl: 'NHL mode', football: 'Football mode', all: 'All sports mode' };
+    const ariaLabels = { mlb: 'MLB mode', golf: 'Golf mode', nba: 'NBA mode', nfl: 'NFL mode', nhl: 'NHL mode', epl: 'EPL mode', all: 'All sports mode' };
     elements.sportIcon().setAttribute('aria-label', ariaLabels[currentSport] || 'MLB mode');
   }
 }
@@ -839,12 +844,10 @@ function getFilteredPlayers() {
       return true;
     });
   }
-  if (currentSport === 'football') {
-    const lg = elements.footballLeagueFilter().value;
-    const club = elements.footballClubFilter().value;
+  if (currentSport === 'epl') {
+    const club = elements.eplClubFilter().value;
     return players.filter(p => {
       if (guessedSet.has(p.name)) return false;
-      if (lg && p.league !== lg) return false;
       if (club && p.club !== club) return false;
       return true;
     });
@@ -936,26 +939,15 @@ function populateNhlFilters() {
     teams.map(t => `<option value="${escapeHtml(t)}" ${t === currentTeam ? 'selected' : ''}>${escapeHtml(t)}</option>`).join('');
 }
 
-function populateFootballFilters() {
-  if (currentSport !== 'football') return;
-  // Only leagues/clubs in this round’s pool — each option must match at least one guessable player.
-  const leagueSel = elements.footballLeagueFilter();
-  const clubSel = elements.footballClubFilter();
-  const leagues = [...new Set(players.map(p => p.league))].sort();
-  let leagueVal = leagueSel.value;
-  if (leagueVal && !leagues.includes(leagueVal)) {
-    leagueVal = '';
-    leagueSel.value = '';
-  }
-  let clubs = [...new Set(players.map(p => p.club))].sort();
-  if (leagueVal) clubs = [...new Set(players.filter(p => p.league === leagueVal).map(p => p.club))].sort();
+function populateEplFilters() {
+  if (currentSport !== 'epl') return;
+  const clubSel = elements.eplClubFilter();
+  const clubs = [...new Set(players.map(p => p.club))].sort();
   let clubVal = clubSel.value;
   if (clubVal && !clubs.includes(clubVal)) {
     clubVal = '';
     clubSel.value = '';
   }
-  leagueSel.innerHTML = '<option value="">All</option>' +
-    leagues.map(l => `<option value="${escapeHtml(l)}" ${l === leagueVal ? 'selected' : ''}>${escapeHtml(l)}</option>`).join('');
   clubSel.innerHTML = '<option value="">All</option>' +
     clubs.map(c => `<option value="${escapeHtml(c)}" ${c === clubVal ? 'selected' : ''}>${escapeHtml(c)}</option>`).join('');
 }
@@ -1239,14 +1231,14 @@ function showSportUI() {
   elements.filtersNba().classList.toggle('hidden', currentSport !== 'nba');
   elements.filtersNfl().classList.toggle('hidden', currentSport !== 'nfl');
   elements.filtersNhl().classList.toggle('hidden', currentSport !== 'nhl');
-  elements.filtersFootball().classList.toggle('hidden', currentSport !== 'football');
+  elements.filtersEpl().classList.toggle('hidden', currentSport !== 'epl');
   elements.filtersAll().classList.toggle('hidden', currentSport !== 'all');
   elements.clueGridMlb().classList.toggle('hidden', currentSport !== 'mlb');
   elements.clueGridGolf().classList.toggle('hidden', currentSport !== 'golf');
   elements.clueGridNba().classList.toggle('hidden', currentSport !== 'nba');
   elements.clueGridNfl().classList.toggle('hidden', currentSport !== 'nfl');
   elements.clueGridNhl().classList.toggle('hidden', currentSport !== 'nhl');
-  elements.clueGridFootball().classList.toggle('hidden', currentSport !== 'football');
+  elements.clueGridEpl().classList.toggle('hidden', currentSport !== 'epl');
   elements.clueGridAll()?.classList.toggle('hidden', currentSport !== 'all');
   updateHeaderForSport();
   $$('.sport-tab').forEach(tab => {
@@ -1296,10 +1288,9 @@ function startGame() {
     elements.nhlConferenceFilter().value = '';
     elements.nhlTeamFilter().value = '';
     populateNhlFilters();
-  } else if (currentSport === 'football') {
-    elements.footballLeagueFilter().value = '';
-    elements.footballClubFilter().value = '';
-    populateFootballFilters();
+  } else if (currentSport === 'epl') {
+    elements.eplClubFilter().value = '';
+    populateEplFilters();
   } else if (currentSport === 'all') {
     elements.allSportFilter().value = '';
   }
@@ -1345,8 +1336,9 @@ function formatBonusClue() {
   if (currentSport === 'nhl') {
     return `${formatHeight(answer.height)} · ${answer.rings} Stanley Cup${answer.rings !== 1 ? 's' : ''}`;
   }
-  if (currentSport === 'football') {
-    return `${formatHeight(answer.height)} · ${answer.trophies} major title${answer.trophies !== 1 ? 's' : ''} (approx.)`;
+  if (currentSport === 'epl') {
+    const age = Number(answer.age) || 0;
+    return `${formatHeight(answer.height)} · age ${age} · ${answer.trophies} major title${answer.trophies !== 1 ? 's' : ''} (approx.)`;
   }
   if (currentSport === 'all') {
     const age = Number(answer.age) || 0;
@@ -1595,7 +1587,7 @@ function handleGuess() {
       filtersUsedThisGame = true;
     } else if (currentSport === 'nhl' && (elements.nhlConferenceFilter().value || elements.nhlTeamFilter().value)) {
       filtersUsedThisGame = true;
-    } else if (currentSport === 'football' && (elements.footballLeagueFilter().value || elements.footballClubFilter().value)) {
+    } else if (currentSport === 'epl' && elements.eplClubFilter().value) {
       filtersUsedThisGame = true;
     } else if (currentSport === 'all' && elements.allSportFilter().value) {
       filtersUsedThisGame = true;
@@ -1745,6 +1737,12 @@ function copyShareGameLink() {
 function init() {
   const urlSport = getSportFromUrl();
   currentSport = urlSport || 'nfl';
+  try {
+    const legacy = localStorage.getItem('pickSixStreak_football');
+    if (legacy != null && localStorage.getItem('pickSixStreak_epl') == null) {
+      localStorage.setItem('pickSixStreak_epl', legacy);
+    }
+  } catch (_) { /* ignore */ }
   players = getPlayers();
   if (players.length === 0) {
     elements.message().textContent = 'Player data failed to load.';
@@ -1781,11 +1779,7 @@ function init() {
     populateSelect();
   });
   elements.nhlTeamFilter()?.addEventListener('change', populateSelect);
-  elements.footballLeagueFilter()?.addEventListener('change', () => {
-    populateFootballFilters();
-    populateSelect();
-  });
-  elements.footballClubFilter()?.addEventListener('change', populateSelect);
+  elements.eplClubFilter()?.addEventListener('change', populateSelect);
   elements.allSportFilter()?.addEventListener('change', populateSelect);
   document.body.addEventListener('click', (e) => {
     const el = e.target instanceof Element ? e.target : e.target.parentElement;

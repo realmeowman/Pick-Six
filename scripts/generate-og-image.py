@@ -18,7 +18,7 @@ CARDS = {
     "nba": ("NBA", "#17408B"),
     "mlb": ("MLB", "#002D72"),
     "nhl": ("NHL", "#F0B942"),
-    "football": ("FOOTBALL", "#3d9a4a"),
+    "epl": ("EPL", "#38003c"),
     "golf": ("GOLF", "#2d8a5e"),
     "all": ("ALL SPORTS", "#58a6ff"),
 }
@@ -83,7 +83,7 @@ def draw_card(sport_key: str) -> Image.Image:
     draw.text((cx, 410), subtitle, fill=MUTED, font=sub_font, anchor="mm")
 
     if sport_key == "all":
-        tag = "NFL · NBA · MLB · NHL · Football · Golf"
+        tag = "NFL · NBA · MLB · NHL · EPL · Golf"
     else:
         tag = "Six clues · six guesses · six rounds"
     draw.text((cx, 475), tag, fill=MUTED, font=tag_font, anchor="mm")

@@ -257,7 +257,7 @@ button.small {
 .filters-nba,
 .filters-nfl,
 .filters-nhl,
-.filters-football {
+.filters-epl {
   display: flex;
   align-items: center;
   gap: 0.75rem;

@@ -17,14 +17,14 @@ SPORTS = {
     "nba": ("NBA", "Guess the mystery NBA player — six clues, six guesses."),
     "mlb": ("MLB", "Guess the mystery MLB player — six clues, six guesses."),
     "nhl": ("NHL", "Guess the mystery NHL player — six clues, six guesses."),
-    "football": (
-        "Football",
-        "Guess the mystery football player — six clues, six guesses.",
+    "epl": (
+        "EPL",
+        "Guess the mystery Premier League player — six clues, six guesses.",
     ),
     "golf": ("Golf", "Guess the mystery PGA golfer — six clues, six guesses."),
     "all": (
         "All sports",
-        "Play Pick Six across NFL, NBA, MLB, NHL, Football, and Golf — six clues, six guesses.",
+        "Play Pick Six across NFL, NBA, MLB, NHL, EPL, and Golf — six clues, six guesses.",
     ),
 }
 
