@@ -129,7 +129,83 @@ function getSportFromUrl() {
 function replaceUrlForLocalGame() {
   const params = new URLSearchParams();
   params.set('sport', currentSport);
+  if (vsMode && vsSessionSeed != null) {
+    params.set('vs', String(vsSessionSeed));
+  }
+  if (incomingChallengerScore != null && Number.isFinite(incomingChallengerScore)) {
+    params.set('cs', incomingChallengerScore.toFixed(2));
+  }
   history.replaceState(null, '', `${location.pathname}?${params.toString()}`);
+}
+
+function clearVsMode() {
+  vsMode = false;
+  vsSessionSeed = null;
+  incomingChallengerScore = null;
+}
+
+function deriveRoundSeed(sessionSeed, round) {
+  let x = (sessionSeed >>> 0) ^ (round * 0x9e3779b9);
+  x = Math.imul(x ^ (x >>> 16), 0x85ebca6b);
+  return x >>> 0;
+}
+
+function shouldIncludeChallengerScoreInVsLink() {
+  if (sessionRoundScores.length === 0) return false;
+  if (sessionRoundScores.length === ROUND_SIZES.length) return true;
+  const go = elements.gameOver();
+  return !!(go && !go.classList.contains('hidden'));
+}
+
+function getVsChallengeUrl() {
+  const u = new URL(location.origin + location.pathname);
+  const sp = new URLSearchParams();
+  sp.set('sport', currentSport);
+  if (vsSessionSeed != null) {
+    sp.set('vs', String(vsSessionSeed));
+  }
+  if (shouldIncludeChallengerScoreInVsLink()) {
+    sp.set('cs', getSessionTotalScore().toFixed(2));
+  }
+  u.search = sp.toString();
+  return u.toString();
+}
+
+function loadVsFromUrl() {
+  const params = new URLSearchParams(location.search);
+  const vsRaw = params.get('vs');
+  if (!vsRaw) return false;
+  const seed = parseInt(vsRaw, 10);
+  if (!Number.isFinite(seed) || seed < 0) return false;
+  const csRaw = params.get('cs');
+  let cs = null;
+  if (csRaw != null && csRaw !== '') {
+    const n = parseFloat(csRaw);
+    if (Number.isFinite(n)) cs = n;
+  }
+  vsMode = true;
+  vsSessionSeed = seed;
+  incomingChallengerScore = cs;
+  currentRound = 1;
+  resetSessionRoundScores();
+  startGame();
+  return true;
+}
+
+function vsCompareHtml() {
+  if (incomingChallengerScore == null) return '';
+  const mine = getSessionTotalScore();
+  const theirs = incomingChallengerScore;
+  const r = (x) => x.toFixed(2);
+  let msg;
+  if (mine > theirs) {
+    msg = `You scored higher than their ${r(theirs)} (${r(mine)} total).`;
+  } else if (mine < theirs) {
+    msg = `Their ${r(theirs)} is still ahead — you finished with ${r(mine)} total.`;
+  } else {
+    msg = `Same total — ${r(mine)} each.`;
+  }
+  return `<p class="vs-challenge-result">${escapeHtml(msg)}</p>`;
 }
 
 let currentSport = 'mlb';
@@ -147,6 +223,11 @@ let legendsMode = false;
 let currentRound = 1;
 let coopMode = false;
 let coopSeed = null;
+/** Head-to-head: same session seed → same answer each round through round 6 for both players. */
+let vsMode = false;
+let vsSessionSeed = null;
+/** Opponent total from a Vs link (URL cs=) to compare at the end. */
+let incomingChallengerScore = null;
 /** Wall-clock when the round became playable (after startGame / startCoopGame). */
 let roundStartTime = 0;
 /** Timestamp of each submitted guess (local play). */
@@ -225,25 +306,24 @@ const elements = {
   finalScoreLine: () => $('#finalScoreLine'),
   finalScoreShareSlot: () => $('#finalScoreShareSlot'),
   playAgainBtn: () => $('#playAgainBtn'),
-  streak: () => $('#streak'),
   sportIcon: () => $('#sportIcon'),
   tagline: () => $('#tagline'),
   roundLabel: () => $('#roundLabel'),
   coopBanner: () => $('#coopBanner'),
   coopLinkInput: () => $('#coopLinkInput'),
   coopCopyBtn: () => $('#coopCopyBtn'),
-  coopExitBtn: () => $('#coopExitBtn'),
   playWithFriendBtn: () => $('#playWithFriendBtn'),
+  vsModeBtn: () => $('#vsModeBtn'),
   shareGameBtn: () => $('#shareGameBtn'),
+  vsShareModal: () => $('#vsShareModal'),
+  vsShareBlurb: () => $('#vsShareBlurb'),
+  vsShareCopyBtn: () => $('#vsShareCopyBtn'),
+  vsShareDoneBtn: () => $('#vsShareDoneBtn'),
   coopGoFirstModal: () => $('#coopGoFirstModal'),
   coopGoFirstBtn: () => $('#coopGoFirstBtn'),
   coopShareModal: () => $('#coopShareModal'),
-  coopShareLinkInput: () => $('#coopShareLinkInput'),
   coopShareCopyBtn: () => $('#coopShareCopyBtn'),
   coopShareDoneBtn: () => $('#coopShareDoneBtn'),
-  coopPreviewCanvas: () => $('#coopPreviewCanvas'),
-  coopSaveImageBtn: () => $('#coopSaveImageBtn'),
-  coopCopyImageBtn: () => $('#coopCopyImageBtn'),
   clueGridAll: () => $('#clueGridAll'),
 };
 
@@ -363,6 +443,21 @@ function hideCoopBanner() {
   if (banner) banner.classList.add('hidden');
 }
 
+function updateCoopActionButtonUi() {
+  const btn = elements.playWithFriendBtn();
+  if (!btn) return;
+  const shareLabel = btn.querySelector('.share-game-btn__label--share');
+  if (coopMode) {
+    btn.classList.add('coop-action-btn--exit');
+    btn.setAttribute('aria-label', 'Exit Co-op and return to solo play');
+    if (shareLabel) shareLabel.textContent = 'Exit Co-op';
+  } else {
+    btn.classList.remove('coop-action-btn--exit', 'share-game-btn--checking', 'share-game-btn--copied');
+    btn.setAttribute('aria-label', 'Play Co-op with a friend');
+    if (shareLabel) shareLabel.textContent = 'Co-op';
+  }
+}
+
 function showCoopGoFirstModal() {
   elements.coopGoFirstModal()?.classList.remove('hidden');
   elements.coopGoFirstBtn()?.focus();
@@ -372,82 +467,36 @@ function hideCoopGoFirstModal() {
   elements.coopGoFirstModal()?.classList.add('hidden');
 }
 
-function wrapCanvasLines(ctx, text, maxWidth, maxLines) {
-  const words = text.split(/\s+/).filter(Boolean);
-  const lines = [];
-  let line = '';
-  for (let i = 0; i < words.length; i++) {
-    const word = words[i];
-    const test = line ? `${line} ${word}` : word;
-    if (ctx.measureText(test).width <= maxWidth) {
-      line = test;
-      continue;
-    }
-    if (line) {
-      lines.push(line);
-      line = '';
-    }
-    if (lines.length >= maxLines) break;
-    if (ctx.measureText(word).width <= maxWidth) {
-      line = word;
-    } else {
-      let w = word;
-      while (w.length > 1 && ctx.measureText(`${w}…`).width > maxWidth) w = w.slice(0, -1);
-      lines.push(`${w}…`);
-      if (lines.length >= maxLines) return lines;
-    }
-  }
-  if (line && lines.length < maxLines) lines.push(line);
-  return lines.slice(0, maxLines);
+function setVsShareBlurb() {
+  const blurb = elements.vsShareBlurb();
+  if (!blurb) return;
+  const post = shouldIncludeChallengerScoreInVsLink();
+  blurb.textContent = post
+    ? 'This link includes your total so they know what to beat. Same seed means the same answer every round.'
+    : 'You and a friend both play the same six rounds (same mystery player in each round). Share anytime — add your score to the link after you finish.';
 }
 
-function renderCoopPreviewCard(guessName) {
-  const canvas = elements.coopPreviewCanvas();
-  if (!canvas) return;
-  const w = 1200;
-  const h = 630;
-  const dpr = Math.min(2, typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1);
-  canvas.width = w * dpr;
-  canvas.height = h * dpr;
-  canvas.style.width = `${w / 2}px`;
-  canvas.style.height = `${h / 2}px`;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return;
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.fillStyle = '#0d1117';
-  ctx.fillRect(0, 0, w, h);
-  ctx.fillStyle = '#e6edf3';
-  ctx.font = 'bold 56px system-ui, -apple-system, sans-serif';
-  ctx.fillText('Pick Six', 56, 96);
-  const sportLabel = (currentSport || '').toUpperCase();
-  ctx.fillStyle = '#8b949e';
-  ctx.font = '28px system-ui, -apple-system, sans-serif';
-  ctx.fillText(sportLabel, 56, 148);
-  ctx.fillStyle = '#58a6ff';
-  ctx.font = 'bold 44px system-ui, -apple-system, sans-serif';
-  const guessLine = guessName ? `I guessed: ${guessName}` : 'Your turn';
-  const lines = wrapCanvasLines(ctx, guessLine, w - 112, 3);
-  let ly = 300;
-  lines.forEach((ln) => {
-    ctx.fillText(ln, 56, ly);
-    ly += 52;
-  });
-  ctx.fillStyle = '#8b949e';
-  ctx.font = '26px system-ui, -apple-system, sans-serif';
-  ctx.fillText('Your turn — open the link to play.', 56, 540);
+function showVsShareModal() {
+  const modal = elements.vsShareModal();
+  const copyBtn = elements.vsShareCopyBtn();
+  if (!modal) return;
+  setVsShareBlurb();
+  if (copyBtn) copyBtn.textContent = 'Copy link';
+  modal.classList.remove('hidden');
+  copyBtn?.focus();
+}
+
+function hideVsShareModal() {
+  elements.vsShareModal()?.classList.add('hidden');
 }
 
 function showCoopShareModal() {
   const modal = elements.coopShareModal();
-  const input = elements.coopShareLinkInput();
   const doneBtn = elements.coopShareDoneBtn();
   const copyBtn = elements.coopShareCopyBtn();
   if (!modal) return;
-  if (input) input.value = getCoopShareUrl();
   if (doneBtn) doneBtn.disabled = true;
   if (copyBtn) copyBtn.textContent = 'Copy link';
-  const lastGuess = guesses.length ? guesses[guesses.length - 1] : '';
-  renderCoopPreviewCard(lastGuess);
   modal.classList.remove('hidden');
   copyBtn?.focus();
 }
@@ -506,6 +555,7 @@ function startCoopGame() {
     clearInterval(timerInterval);
     timerInterval = null;
   }
+  clearVsMode();
   resetSessionRoundScores();
   coopMode = true;
   coopSeed = Math.floor(Math.random() * 0x7fffffff);
@@ -574,6 +624,7 @@ function startCoopGame() {
   roundStartTime = Date.now();
   updateRoundDisplay();
   hideCoopBanner();
+  updateCoopActionButtonUi();
   history.replaceState(null, '', getCoopLink());
   if (!isTouchDevice()) elements.guessSelect().focus();
 }
@@ -621,6 +672,9 @@ function loadCoopFromUrl() {
     }
   }
   if (!state || state.e == null) return false;
+  vsMode = false;
+  vsSessionSeed = null;
+  incomingChallengerScore = null;
   applyCoopState(state);
   showSportUI();
   populateSelect();
@@ -651,6 +705,7 @@ function loadCoopFromUrl() {
   if (!q && location.hash.startsWith('#coop-')) {
     history.replaceState(null, '', getCoopLink());
   }
+  updateCoopActionButtonUi();
   return true;
 }
 
@@ -817,43 +872,6 @@ function getClueGrid() {
   return elements.clueGridMlb();
 }
 
-const STREAK_KEYS = {
-  mlb: 'pickSixStreak_mlb',
-  golf: 'pickSixStreak_golf',
-  nba: 'pickSixStreak_nba',
-  nfl: 'pickSixStreak_nfl',
-  nhl: 'pickSixStreak_nhl',
-  epl: 'pickSixStreak_epl',
-};
-
-function getStreakKey(sport = currentSport) {
-  return STREAK_KEYS[sport] || 'pickSixStreak';
-}
-
-function getStreak(sport = currentSport) {
-  const key = getStreakKey(sport);
-  try {
-    return parseInt(localStorage.getItem(key) || '0', 10);
-  } catch (_) { return 0; }
-}
-
-function setStreak(n, sport = currentSport) {
-  const key = getStreakKey(sport);
-  try { localStorage.setItem(key, String(n)); } catch (_) {}
-}
-
-function updateStreakDisplay() {
-  const streak = getStreak(currentSport);
-  elements.streak().textContent = streak > 0 ? '🏆'.repeat(streak) : '';
-  if (streak > 0) {
-    const sportLabels = { mlb: 'MLB', golf: 'golf', nba: 'NBA', nfl: 'NFL', nhl: 'NHL', epl: 'EPL', all: 'All sports' };
-    const sportLabel = sportLabels[currentSport] || 'MLB';
-    elements.streak().ariaLabel = `${streak} full game${streak !== 1 ? 's' : ''} completed in ${sportLabel}`;
-  } else {
-    elements.streak().ariaLabel = 'Full games completed (all 6 rounds)';
-  }
-}
-
 const TAGLINES = {
   mlb: 'Find the mystery player using 6 clues. 6 guesses.',
   golf: 'Find the mystery player using 6 clues. 6 guesses.',
@@ -871,7 +889,7 @@ const SPORT_ICONS = {
   nfl: '🏈',
   nhl: '🏒',
   epl: '⚽',
-  all: '🏆',
+  all: '🌐',
 };
 
 function updateHeaderForSport() {
@@ -1265,9 +1283,9 @@ function processGuessReveals(guess, onComplete) {
 }
 
 const FULL_RUN_MSGS = [
-  n => `From 25 to 150 — you ran the whole gauntlet. All six rounds, no mercy. 🏆 The answer was ${n}.`,
+  n => `From 25 to 150 — you ran the whole gauntlet. All six rounds, no mercy. The answer was ${n}.`,
   n => `You cleared the gauntlet. Every round. The mystery players never stood a chance. The answer was ${n}.`,
-  n => `Six rounds, six W's. You didn't just play — you dominated. 🏆 The answer was ${n}.`,
+  n => `Six rounds, six W's. You didn't just play — you dominated. The answer was ${n}.`,
   n => `25, 50, 75, 100, 125, 150 … you crushed 'em all. Full run complete. The answer was ${n}.`,
   n => `Who hurt you? You just breezed through all six rounds. Legendary. The answer was ${n}.`,
 ];
@@ -1384,13 +1402,19 @@ function startGame() {
   hideCoopBanner();
   hideCoopGoFirstModal();
   hideCoopShareModal();
+  hideVsShareModal();
 
   players = getPlayers();
   if (players.length === 0) {
     elements.message().textContent = 'Player data failed to load.';
     return;
   }
-  answer = players[Math.floor(Math.random() * players.length)];
+  if (vsMode && vsSessionSeed != null) {
+    const roundSeed = deriveRoundSeed(vsSessionSeed, currentRound);
+    answer = getAnswerFromSeed(players, roundSeed);
+  } else {
+    answer = players[Math.floor(Math.random() * players.length)];
+  }
   attemptsLeft = MAX_ATTEMPTS;
   bonusClueUnlocked = false;
   guesses = [];
@@ -1450,6 +1474,7 @@ function startGame() {
 
   roundStartTime = Date.now();
   updateRoundDisplay();
+  updateCoopActionButtonUi();
   if (!isTouchDevice()) elements.guessSelect().focus();
 }
 
@@ -1627,10 +1652,6 @@ function showScoreBreakdown(won) {
 
 function win(isFirstTry, isLastPick) {
   if (coopMode) hideCoopBanner();
-  if (currentRound === ROUND_SIZES.length) {
-    setStreak(getStreak(currentSport) + 1, currentSport);
-    updateStreakDisplay();
-  }
   stopTimer();
   elements.guessSelect().disabled = true;
   elements.guessBtn().disabled = true;
@@ -1652,7 +1673,7 @@ function win(isFirstTry, isLastPick) {
   }
   const legendsBadge = legendsMode ? '<span class="legends-badge">Legends Mode</span>' : '';
   const nextRoundLabel = currentRound < ROUND_SIZES.length ? 'Next round' : 'Play again';
-  const finalBlock = currentRound === ROUND_SIZES.length ? finalScorePanelHtml() : '';
+  const finalBlock = currentRound === ROUND_SIZES.length ? finalScorePanelHtml() + vsCompareHtml() : '';
   elements.message().innerHTML = `${msg} ${legendsBadge} <span class="round-score score-clickable" role="button" tabindex="0" title="Click for breakdown">Score: ${scoreStr}</span> ${finalBlock} <button type="button" id="nextRoundBtn" class="secondary small">${escapeHtml(nextRoundLabel)}</button><div class="answer-summary">${formatAnswerSummary()}</div>`;
   elements.message().className = 'message ' + (isFirstTry ? 'first-try' : 'win');
   $('#nextRoundBtn')?.addEventListener('click', () => {
@@ -1663,8 +1684,6 @@ function win(isFirstTry, isLastPick) {
 
 function lose() {
   if (coopMode) hideCoopBanner();
-  setStreak(0, currentSport);
-  updateStreakDisplay();
   stopTimer();
   elements.guessSelect().disabled = true;
   elements.guessBtn().disabled = true;
@@ -1677,11 +1696,12 @@ function lose() {
   const sessionTotal = getSessionTotalScore();
   elements.gameOver().classList.remove('hidden');
   elements.gameOverTitle().textContent = 'Game over';
-  elements.gameOverText().innerHTML = `The answer was <strong>${answer.name}</strong><div class="answer-summary">${formatAnswerSummary()}</div><span class="round-score score-clickable" role="button" tabindex="0" title="Click for breakdown">Round score: ${scoreStr}</span>`;
+  elements.gameOverText().innerHTML = `The answer was <strong>${answer.name}</strong><div class="answer-summary">${formatAnswerSummary()}</div><span class="round-score score-clickable" role="button" tabindex="0" title="Click for breakdown">Round score: ${scoreStr}</span>${vsCompareHtml()}`;
   const line = elements.finalScoreLine();
   const banner = elements.finalScoreBanner();
   if (line) line.innerHTML = `${sessionTotal.toFixed(2)} <span class="final-score-max">/ ${MAX_SESSION_SCORE}</span>`;
   if (banner) banner.classList.remove('hidden');
+  replaceUrlForLocalGame();
   elements.playAgainBtn().focus();
 }
 
@@ -1785,10 +1805,41 @@ function switchSport(sport) {
   currentSport = sport;
   currentRound = 1;
   resetSessionRoundScores();
+  clearVsMode();
   startGame();
 }
 
 let shareBtnResetTimer = null;
+let vsShareBtnResetTimer = null;
+let coopActionResetTimer = null;
+
+function runCoopExitThen(callback) {
+  const btn = elements.playWithFriendBtn();
+  if (!btn) {
+    callback();
+    return;
+  }
+  if (btn.classList.contains('share-game-btn--checking')) return;
+  if (coopActionResetTimer) {
+    clearTimeout(coopActionResetTimer);
+    coopActionResetTimer = null;
+  }
+  btn.classList.remove('share-game-btn--copied');
+  btn.classList.add('share-game-btn--checking');
+  const pulseStart = Date.now();
+  const revealDone = () => {
+    btn.classList.remove('share-game-btn--checking');
+    btn.classList.add('share-game-btn--copied');
+    btn.setAttribute('aria-label', 'Back to solo');
+    coopActionResetTimer = setTimeout(() => {
+      btn.classList.remove('share-game-btn--copied');
+      coopActionResetTimer = null;
+      callback();
+    }, 650);
+  };
+  playSound('success');
+  setTimeout(revealDone, Math.max(0, 400 - (Date.now() - pulseStart)));
+}
 
 function fallbackCopyToClipboard(text) {
   const ta = document.createElement('textarea');
@@ -1870,25 +1921,101 @@ function copyShareGameLink() {
   });
 }
 
+function copyVsLinkToClipboard() {
+  if (audioCtx && audioCtx.state !== 'running') {
+    void audioCtx.resume();
+  }
+  const url = getVsChallengeUrl();
+  const btn = elements.vsModeBtn();
+  let pulseStart = 0;
+  if (btn) {
+    btn.classList.remove('share-game-btn--copied');
+    btn.classList.add('share-game-btn--checking');
+    pulseStart = Date.now();
+  }
+
+  const revealCopied = () => {
+    if (!btn) return;
+    if (vsShareBtnResetTimer) {
+      clearTimeout(vsShareBtnResetTimer);
+      vsShareBtnResetTimer = null;
+    }
+    btn.classList.remove('share-game-btn--checking');
+    btn.classList.add('share-game-btn--copied');
+    btn.setAttribute('aria-label', 'Vs link copied');
+    vsShareBtnResetTimer = setTimeout(() => {
+      btn.classList.remove('share-game-btn--copied');
+      btn.setAttribute('aria-label', 'Copy link to challenge a friend on the same game');
+      vsShareBtnResetTimer = null;
+    }, 2500);
+  };
+
+  const succeed = () => {
+    playSound('success');
+    if (!btn) return;
+    const elapsed = Date.now() - pulseStart;
+    const wait = Math.max(0, 400 - elapsed);
+    setTimeout(revealCopied, wait);
+  };
+
+  const fail = () => {
+    if (btn) {
+      btn.classList.remove('share-game-btn--checking');
+      btn.title = url;
+    }
+    setTimeout(() => {
+      if (btn) btn.title = '';
+    }, 12000);
+  };
+
+  if (!navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') {
+    if (fallbackCopyToClipboard(url)) succeed();
+    else fail();
+    return;
+  }
+
+  navigator.clipboard.writeText(url).then(() => {
+    succeed();
+  }).catch(() => {
+    if (fallbackCopyToClipboard(url)) succeed();
+    else fail();
+  });
+}
+
+function openVsShareFlow() {
+  if (coopMode) {
+    elements.message().textContent = 'You’re in Co-op, tap Exit Co-op to continue.';
+    elements.message().className = 'message error';
+    return;
+  }
+  if (!vsMode) {
+    vsMode = true;
+    vsSessionSeed = Math.floor(Math.random() * 0x7fffffff);
+    incomingChallengerScore = null;
+    currentRound = 1;
+    resetSessionRoundScores();
+    startGame();
+  }
+  showVsShareModal();
+  copyVsLinkToClipboard();
+}
+
 function init() {
   const urlSport = getSportFromUrl();
   currentSport = urlSport || 'nfl';
-  try {
-    const legacy = localStorage.getItem('pickSixStreak_football');
-    if (legacy != null && localStorage.getItem('pickSixStreak_epl') == null) {
-      localStorage.setItem('pickSixStreak_epl', legacy);
-    }
-  } catch (_) { /* ignore */ }
   players = getPlayers();
   if (players.length === 0) {
     elements.message().textContent = 'Player data failed to load.';
     return;
   }
-  updateStreakDisplay();
   showSportUI();
 
   resetSessionRoundScores();
-  if (!loadCoopFromUrl()) startGame();
+  if (!loadCoopFromUrl()) {
+    if (!loadVsFromUrl()) {
+      startGame();
+    }
+  }
 
   $$('.sport-tab').forEach(tab => {
     tab.addEventListener('click', () => switchSport(tab.dataset.sport));
@@ -1931,18 +2058,23 @@ function init() {
     startGame();
   });
   elements.newGameBtn().addEventListener('click', () => {
-    if (
-      sessionRoundScores.length > 0 &&
-      sessionRoundScores.length < ROUND_SIZES.length
-    ) {
-      setStreak(0, currentSport);
-      updateStreakDisplay();
-    }
     currentRound = 1;
     resetSessionRoundScores();
+    clearVsMode();
     startGame();
   });
-  elements.playWithFriendBtn()?.addEventListener('click', showCoopGoFirstModal);
+  elements.vsModeBtn()?.addEventListener('click', openVsShareFlow);
+  elements.playWithFriendBtn()?.addEventListener('click', () => {
+    if (coopMode) {
+      runCoopExitThen(() => {
+        resetSessionRoundScores();
+        clearVsMode();
+        startGame();
+      });
+    } else {
+      showCoopGoFirstModal();
+    }
+  });
   elements.coopGoFirstBtn()?.addEventListener('click', () => {
     hideCoopGoFirstModal();
     startCoopGame();
@@ -1957,64 +2089,25 @@ function init() {
       }
     } catch (_) {}
   });
-  elements.coopSaveImageBtn()?.addEventListener('click', () => {
-    const canvas = elements.coopPreviewCanvas();
-    if (!canvas) return;
-    canvas.toBlob((blob) => {
-      if (!blob) return;
-      const a = document.createElement('a');
-      const url = URL.createObjectURL(blob);
-      a.href = url;
-      a.download = 'pick-six-your-turn.png';
-      a.click();
-      URL.revokeObjectURL(url);
-      const done = elements.coopShareDoneBtn();
-      if (done) done.disabled = false;
-    }, 'image/png');
-  });
-  elements.coopCopyImageBtn()?.addEventListener('click', async () => {
-    const canvas = elements.coopPreviewCanvas();
-    if (!canvas || !navigator.clipboard) return;
-    canvas.toBlob(async (blob) => {
-      if (!blob) return;
-      try {
-        if (typeof ClipboardItem === 'undefined') return;
-        await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
-        const done = elements.coopShareDoneBtn();
-        if (done) done.disabled = false;
-        const btn = elements.coopCopyImageBtn();
-        if (btn) {
-          const prev = btn.textContent;
-          btn.textContent = 'Copied!';
-          setTimeout(() => { btn.textContent = prev; }, 2000);
-        }
-      } catch (_) {}
-    }, 'image/png');
-  });
   elements.coopShareDoneBtn()?.addEventListener('click', () => {
     hideCoopShareModal();
     showCoopBanner('Link copied. Send it to your friend so they can take their turn.');
   });
-  elements.coopCopyBtn()?.addEventListener('click', copyCoopLink);
-  elements.coopExitBtn()?.addEventListener('click', () => {
-    coopMode = false;
-    coopSeed = null;
-    hideCoopBanner();
-    resetSessionRoundScores();
-    startGame();
+  elements.vsShareCopyBtn()?.addEventListener('click', async () => {
+    const link = getVsChallengeUrl();
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(link);
+        const done = elements.vsShareDoneBtn();
+        if (done) done.disabled = false;
+        const c = elements.vsShareCopyBtn();
+        if (c) c.textContent = 'Copied!';
+      }
+    } catch (_) {}
   });
+  elements.coopCopyBtn()?.addEventListener('click', copyCoopLink);
   elements.shareGameBtn()?.addEventListener('click', () => {
     copyShareGameLink();
-  });
-  $('#helpBtn')?.addEventListener('click', () => {
-    const panel = $('#helpPanel');
-    if (!panel) return;
-    panel.classList.remove('hidden');
-    $('#helpCloseBtn')?.focus();
-  });
-  $('#helpCloseBtn')?.addEventListener('click', () => {
-    $('#helpPanel')?.classList.add('hidden');
-    $('#helpBtn')?.focus();
   });
   document.addEventListener('click', (e) => {
     const t = e.target;
@@ -2028,7 +2121,8 @@ function init() {
     if (location.hash.startsWith('#coop-')) location.reload();
   });
   window.addEventListener('popstate', () => {
-    if (new URLSearchParams(location.search).get('coop')) location.reload();
+    const sp = new URLSearchParams(location.search);
+    if (sp.get('coop') || sp.get('vs')) location.reload();
   });
 
   /** Unlock audio on first tap so clue sounds (fired from setTimeout) and async share copy can play. */
@@ -2073,5 +2167,39 @@ function init() {
   });
 }
 
+/**
+ * Help + Vs modal dismiss: runs before init() so it still works if init() throws or
+ * returns early. Uses document delegation so clicks on the ❓ inside #helpBtn work
+ * reliably. Vs "Done" must not use the HTML disabled attribute or clicks never fire.
+ */
+function setupGlobalUi() {
+  document.addEventListener('click', (e) => {
+    const el = e.target;
+    if (!(el instanceof Element)) return;
+    if (el.closest('#helpBtn')) {
+      e.preventDefault();
+      $('#helpPanel')?.classList.remove('hidden');
+      $('#helpCloseBtn')?.focus();
+      return;
+    }
+    if (el.closest('#helpCloseBtn')) {
+      $('#helpPanel')?.classList.add('hidden');
+      $('#helpBtn')?.focus();
+      return;
+    }
+    if (el.closest('#vsShareDoneBtn')) {
+      hideVsShareModal();
+    }
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    const hp = $('#helpPanel');
+    if (!hp || hp.classList.contains('hidden')) return;
+    hp.classList.add('hidden');
+    $('#helpBtn')?.focus();
+  });
+}
+
+setupGlobalUi();
 init();
 })();

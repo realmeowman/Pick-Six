@@ -41,12 +41,6 @@ body {
   min-width: 0;
 }
 
-.streak {
-  font-size: 1.25rem;
-  line-height: 1;
-  color: var(--text-muted);
-}
-
 header {
   text-align: center;
   margin-bottom: 2rem;
@@ -96,15 +90,86 @@ h1 {
 
 .header-meta {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: 1rem;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.75rem;
   margin-top: 1rem;
   width: 100%;
 }
 
-/* Keep Start new game, Play with a friend, and Share on one row (scroll on very narrow screens). */
+.header-meta-stats {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem 1rem;
+  width: 100%;
+}
+
+/* Looks like inline ❓; still a real button for a11y + hit target */
+.help-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0.2rem 0.35rem;
+  font: inherit;
+  line-height: 1;
+  font-size: 1.15rem;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  opacity: 0.92;
+  flex-shrink: 0;
+  min-width: 44px;
+  min-height: 44px;
+  box-sizing: border-box;
+  transition: opacity 0.15s, color 0.15s;
+}
+
+.help-mark:hover {
+  opacity: 1;
+  color: var(--accent);
+}
+
+.help-mark:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+.header-new-game-btn {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.95rem 1.25rem;
+  font-size: 1.08rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  min-height: 54px;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  background: var(--accent);
+  color: var(--bg);
+  transition: background 0.15s, transform 0.15s;
+}
+
+.header-new-game-btn:hover:not(:disabled) {
+  background: #6eb4ff;
+}
+
+.header-new-game-btn:active:not(:disabled) {
+  transform: scale(0.99);
+}
+
+.header-new-game-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Vs / Co-op / Share — equal width row (scroll on very narrow screens). */
 .header-action-buttons {
   display: flex;
   flex-direction: row;
@@ -123,17 +188,17 @@ h1 {
   scrollbar-width: thin;
 }
 
-/* Slightly tighter than global .small so three buttons fit typical phone widths */
 .header-action-buttons .secondary.small {
-  flex: 0 0 auto;
+  flex: 1 1 0;
+  min-width: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0.4rem 0.55rem;
+  padding: 0.4rem 0.45rem;
   font-size: 0.78rem;
   line-height: 1.2;
   min-height: 40px;
-  min-width: 40px;
+  text-align: center;
 }
 
 /* Share: same footprint as other secondary.small; copied state mirrors clue-slot check-hit + clue-value.value-correct */
@@ -155,8 +220,9 @@ h1 {
 .share-game-btn__stack {
   display: grid;
   place-items: center;
-  /* Fits pill + "Copied" without clipping (header uses compact .small) */
-  min-width: 5.5rem;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .share-game-btn__label {
@@ -220,6 +286,13 @@ h1 {
 }
 
 .attempts span {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.vs-challenge-result {
+  margin-top: 0.75rem;
+  font-size: 0.95rem;
   color: var(--accent);
   font-weight: 600;
 }
@@ -694,7 +767,7 @@ button:active {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 40;
+  z-index: 200;
   padding: max(1rem, env(safe-area-inset-top, 0px)) var(--safe-pad-inline)
     max(1rem, env(safe-area-inset-bottom, 0px)) var(--safe-pad-inline);
 }
@@ -933,36 +1006,39 @@ button:active {
   line-height: 1.5;
 }
 
+.coop-steps {
+  margin: 0 0 1rem 0;
+  padding-left: 1.25rem;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  line-height: 1.55;
+}
+
+.coop-steps li {
+  margin-bottom: 0.45rem;
+}
+
+.coop-steps li:last-child {
+  margin-bottom: 0;
+}
+
 .coop-modal-link-row {
   display: flex;
   gap: 0.5rem;
   margin-bottom: 1rem;
 }
 
-.coop-modal .coop-link-input {
-  flex: 1;
-  min-width: 0;
-}
-
-.coop-modal--share .coop-preview-card-wrap {
+.coop-modal-copy-row {
   margin-bottom: 1rem;
 }
 
-.coop-preview-card-wrap canvas {
-  display: block;
+.coop-modal-copy-row .coop-modal-copy-btn {
   width: 100%;
-  max-width: 100%;
-  height: auto;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  background: var(--bg);
 }
 
-.coop-preview-card-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-top: 0.5rem;
+.coop-modal .coop-link-input {
+  flex: 1;
+  min-width: 0;
 }
 
 .coop-modal .primary {
@@ -978,6 +1054,16 @@ button:active {
 .coop-modal .primary:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* Co-op button becomes green "Exit Co-op" while a Co-op game is active */
+.coop-action-btn.coop-action-btn--exit {
+  border-color: var(--success);
+  box-shadow: 0 0 12px rgba(63, 185, 80, 0.28);
+}
+
+.header-action-buttons .coop-action-btn.coop-action-btn--exit .share-game-btn__label--share {
+  color: var(--success);
 }
 
 .coop-banner {
