@@ -5,3 +5,7 @@
 name = "coop-preview"
 main = "workers/coop-preview.js"
 compatibility_date = "2024-01-15"
+
+[[kv_namespaces]]
+binding = "COOP_KV"
+id = "faaecc153c7a41a89255798cff9b8b06"

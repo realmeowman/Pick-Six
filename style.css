@@ -1036,6 +1036,10 @@ button:active {
   width: 100%;
 }
 
+.coop-banner .coop-banner-copy-row {
+  margin-bottom: 0;
+}
+
 .coop-modal .coop-link-input {
   flex: 1;
   min-width: 0;

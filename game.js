@@ -316,7 +316,6 @@ const elements = {
   tagline: () => $('#tagline'),
   roundLabel: () => $('#roundLabel'),
   coopBanner: () => $('#coopBanner'),
-  coopLinkInput: () => $('#coopLinkInput'),
   coopCopyBtn: () => $('#coopCopyBtn'),
   playWithFriendBtn: () => $('#playWithFriendBtn'),
   vsModeBtn: () => $('#vsModeBtn'),
@@ -425,7 +424,8 @@ function getCoopLinkForShare() {
   return u.toString();
 }
 
-function getCoopShareUrl() {
+/** Long preview URL (legacy fallback if short-link API fails). iMessage may truncate this. */
+function getCoopShareUrlLong() {
   const direct = getCoopLinkForShare();
   const origin = typeof COOP_PREVIEW_ORIGIN === 'string' ? COOP_PREVIEW_ORIGIN.trim() : '';
   if (!origin || !guesses.length) return direct;
@@ -442,9 +442,25 @@ function getCoopShareUrl() {
   }
 }
 
-function updateCoopLink() {
-  const input = elements.coopLinkInput();
-  if (input) input.value = getCoopShareUrl();
+/** Short Worker URL for chat apps (KV); falls back to getCoopShareUrlLong(). */
+async function resolveCoopShareUrl() {
+  const direct = getCoopLinkForShare();
+  const origin = typeof COOP_PREVIEW_ORIGIN === 'string' ? COOP_PREVIEW_ORIGIN.trim() : '';
+  if (!origin || !guesses.length) return direct;
+  const last = guesses[guesses.length - 1];
+  if (!last) return direct;
+  try {
+    const base = origin.replace(/\/$/, '');
+    const res = await fetch(`${base}/api/shorten`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ g: last, r: direct, sport: currentSport }),
+    });
+    if (!res.ok) return getCoopShareUrlLong();
+    const data = await res.json();
+    if (data && typeof data.url === 'string') return data.url;
+  } catch (_) {}
+  return getCoopShareUrlLong();
 }
 
 function showCoopBanner(message) {
@@ -453,7 +469,6 @@ function showCoopBanner(message) {
   banner.classList.remove('hidden');
   const msgEl = banner.querySelector('.coop-banner-msg');
   if (msgEl) msgEl.textContent = message;
-  updateCoopLink();
 }
 
 function hideCoopBanner() {
@@ -517,6 +532,7 @@ function showCoopShareModal() {
   if (copyBtn) copyBtn.textContent = 'Copy link';
   modal.classList.remove('hidden');
   copyBtn?.focus();
+  void resolveCoopShareUrl().catch(() => {});
 }
 
 function hideCoopShareModal() {
@@ -524,7 +540,7 @@ function hideCoopShareModal() {
 }
 
 async function copyCoopLink() {
-  const link = getCoopShareUrl();
+  const link = await resolveCoopShareUrl();
   try {
     if (navigator.clipboard?.writeText) {
       await navigator.clipboard.writeText(link);
@@ -2098,12 +2114,20 @@ function init() {
     startCoopGame();
   });
   elements.coopShareCopyBtn()?.addEventListener('click', async () => {
-    const link = getCoopShareUrl();
+    const copyBtn = elements.coopShareCopyBtn();
+    const prev = copyBtn?.textContent;
+    if (copyBtn) copyBtn.textContent = '…';
+    let link;
+    try {
+      link = await resolveCoopShareUrl();
+    } finally {
+      if (copyBtn && copyBtn.textContent === '…') copyBtn.textContent = prev || 'Copy link';
+    }
     try {
       if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(link);
         elements.coopShareDoneBtn().disabled = false;
-        elements.coopShareCopyBtn().textContent = 'Copied!';
+        if (copyBtn) copyBtn.textContent = 'Copied!';
       }
     } catch (_) {}
   });
