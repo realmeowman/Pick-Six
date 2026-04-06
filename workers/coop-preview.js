@@ -1,6 +1,7 @@
 /**
  * Cloudflare Worker: deploy and set COOP_PREVIEW_ORIGIN in game.js to this Worker URL.
  * Serves a tiny HTML page with og:title including the guess (g) and redirects to the game (r).
+ * Query: g, r (redirect URL), sport (nfl|nba|…|golf). Append &noredirect=1 to skip auto-redirect (browser testing).
  */
 function escapeHtml(s) {
   return String(s)
@@ -67,6 +68,13 @@ export default {
     const safeUrl = escapeHtml(url.toString());
     const safeOgImage = escapeHtml(ogImage);
     const safeOgImageAlt = escapeHtml(ogImageAlt);
+    const noRedirect = url.searchParams.get('noredirect') === '1';
+    const redirectScript = noRedirect
+      ? ''
+      : `<script>location.replace(${JSON.stringify(r)});</script>`;
+    const debugNote = noRedirect
+      ? '<p style="color:#888;font-size:14px">Preview only (<code>noredirect=1</code>) — chat apps use the meta tags above without this redirect.</p>'
+      : '';
     const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -85,8 +93,9 @@ export default {
 <meta name="twitter:image" content="${safeOgImage}">
 </head>
 <body>
+${debugNote}
 <p><a href="${escapeHtml(r)}">Continue to Pick Six</a></p>
-<script>location.replace(${JSON.stringify(r)});</script>
+${redirectScript}
 </body>
 </html>`;
     return new Response(html, {
