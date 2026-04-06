@@ -5,8 +5,8 @@ const MAX_ATTEMPTS = 6;
 const ROUND_SIZES = [25, 50, 75, 100, 125, 150];
 const MAX_SESSION_SCORE = ROUND_SIZES.length * 10;
 
-/** Optional: Worker URL (https://…) so shared links can show the last guess in iMessage title; see workers/coop-preview.js */
-const COOP_PREVIEW_ORIGIN = 'https://coop-preview.picksixmike.workers.dev';
+/** Optional: Worker origin for Co-op previews (short links + OG). Use a custom subdomain on picksix.lol, not *.workers.dev — see wrangler.toml */
+const COOP_PREVIEW_ORIGIN = 'https://coop.picksix.lol';
 
 /** Copied / SMS Co-op & Vs links use this host so shares don’t point at localhost or preview deploys. Set '' for local-only testing. */
 const PUBLIC_SITE_ORIGIN = 'https://picksix.lol';

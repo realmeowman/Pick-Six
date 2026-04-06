@@ -1,6 +1,9 @@
 # Co-op link preview (Open Graph) for chat apps.
 # Deploy: npx wrangler deploy
 # First time: npx wrangler login
+# Custom URL (hides picksixmike + .workers.dev): Cloudflare dashboard → Workers & Pages →
+# coop-preview → Domains & Routes → Add → Custom domain → e.g. coop.picksix.lol (DNS on CF).
+# Then set COOP_PREVIEW_ORIGIN in game.js to https://coop.picksix.lol (must match).
 # If you already use a different worker name in Cloudflare, change `name` below to match.
 name = "coop-preview"
 main = "workers/coop-preview.js"
