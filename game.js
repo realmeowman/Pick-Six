@@ -6,7 +6,7 @@ const ROUND_SIZES = [25, 50, 75, 100, 125, 150];
 const MAX_SESSION_SCORE = ROUND_SIZES.length * 10;
 
 /** Optional: Worker URL (https://…) so shared links can show the last guess in iMessage title; see workers/coop-preview.js */
-const COOP_PREVIEW_ORIGIN = '';
+const COOP_PREVIEW_ORIGIN = 'https://coop-preview.picksixmike.workers.dev';
 
 const SPORTS = {
   mlb: {
@@ -418,6 +418,7 @@ function getCoopShareUrl() {
     const u = new URL(origin);
     u.searchParams.set('g', last);
     u.searchParams.set('r', direct);
+    u.searchParams.set('sport', currentSport);
     return u.toString();
   } catch (_) {
     return direct;

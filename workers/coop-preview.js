@@ -24,6 +24,32 @@ function isAllowedRedirect(r) {
   }
 }
 
+/** Same OG image assets as /share/<sport>/ — must match picksix.lol static files. */
+const OG_BY_SPORT = {
+  nfl: { image: 'https://picksix.lol/og-image-nfl.png', label: 'NFL' },
+  nba: { image: 'https://picksix.lol/og-image-nba.png', label: 'NBA' },
+  mlb: { image: 'https://picksix.lol/og-image-mlb.png', label: 'MLB' },
+  nhl: { image: 'https://picksix.lol/og-image-nhl.png', label: 'NHL' },
+  epl: { image: 'https://picksix.lol/og-image-epl.png', label: 'EPL' },
+  golf: { image: 'https://picksix.lol/og-image-golf.png', label: 'Golf' },
+  all: { image: 'https://picksix.lol/og-image-all.png', label: 'All sports' },
+};
+
+const OG_DEFAULT = {
+  image: 'https://picksix.lol/og-image.png',
+  label: 'Sports',
+};
+
+function ogMetaForSport(sportRaw) {
+  const key = String(sportRaw || '').toLowerCase().trim();
+  const og = OG_BY_SPORT[key] || OG_DEFAULT;
+  return {
+    image: og.image,
+    imageAlt: `Pick Six — ${og.label} — branded preview card`,
+    label: og.label,
+  };
+}
+
 export default {
   async fetch(request) {
     const url = new URL(request.url);
@@ -32,11 +58,15 @@ export default {
     if (!r || !isAllowedRedirect(r)) {
       return Response.redirect('https://picksix.lol/', 302);
     }
-    const title = `Pick Six — ${g}`;
-    const desc = 'Your turn to guess.';
+    const sportParam = url.searchParams.get('sport');
+    const { image: ogImage, imageAlt: ogImageAlt, label: sportLabel } = ogMetaForSport(sportParam);
+    const title = `Pick Six — ${sportLabel} — ${g}`;
+    const desc = `Co-op — ${sportLabel}. Your turn to guess.`;
     const safeTitle = escapeHtml(title);
     const safeDesc = escapeHtml(desc);
     const safeUrl = escapeHtml(url.toString());
+    const safeOgImage = escapeHtml(ogImage);
+    const safeOgImageAlt = escapeHtml(ogImageAlt);
     const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -46,9 +76,13 @@ export default {
 <meta property="og:title" content="${safeTitle}">
 <meta property="og:description" content="${safeDesc}">
 <meta property="og:url" content="${safeUrl}">
-<meta property="og:image" content="https://picksix.lol/og-image.png">
+<meta property="og:image" content="${safeOgImage}">
+<meta property="og:image:alt" content="${safeOgImageAlt}">
 <meta property="og:type" content="website">
 <meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="${safeTitle}">
+<meta name="twitter:description" content="${safeDesc}">
+<meta name="twitter:image" content="${safeOgImage}">
 </head>
 <body>
 <p><a href="${escapeHtml(r)}">Continue to Pick Six</a></p>

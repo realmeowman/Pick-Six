@@ -1,0 +1,7 @@
+# Co-op link preview (Open Graph) for chat apps.
+# Deploy: npx wrangler deploy
+# First time: npx wrangler login
+# If you already use a different worker name in Cloudflare, change `name` below to match.
+name = "coop-preview"
+main = "workers/coop-preview.js"
+compatibility_date = "2024-01-15"
