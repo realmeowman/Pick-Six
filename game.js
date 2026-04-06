@@ -8,6 +8,9 @@ const MAX_SESSION_SCORE = ROUND_SIZES.length * 10;
 /** Optional: Worker URL (https://…) so shared links can show the last guess in iMessage title; see workers/coop-preview.js */
 const COOP_PREVIEW_ORIGIN = 'https://coop-preview.picksixmike.workers.dev';
 
+/** Copied / SMS Co-op & Vs links use this host so shares don’t point at localhost or preview deploys. Set '' for local-only testing. */
+const PUBLIC_SITE_ORIGIN = 'https://picksix.lol';
+
 const SPORTS = {
   mlb: {
     key: 'mlb',
@@ -158,7 +161,10 @@ function shouldIncludeChallengerScoreInVsLink() {
 }
 
 function getVsChallengeUrl() {
-  const u = new URL(location.origin + location.pathname);
+  const base = typeof PUBLIC_SITE_ORIGIN === 'string' ? PUBLIC_SITE_ORIGIN.trim() : '';
+  const u = base
+    ? new URL(base.replace(/\/$/, '') + '/')
+    : new URL(location.origin + location.pathname);
   const sp = new URLSearchParams();
   sp.set('sport', currentSport);
   if (vsSessionSeed != null) {
@@ -408,8 +414,19 @@ function getCoopLink() {
   return u.toString();
 }
 
+/** Same state as getCoopLink(), but canonical host for texts / Worker redirect (see PUBLIC_SITE_ORIGIN). */
+function getCoopLinkForShare() {
+  const base = typeof PUBLIC_SITE_ORIGIN === 'string' ? PUBLIC_SITE_ORIGIN.trim() : '';
+  if (!base) return getCoopLink();
+  const state = encodeCoopState();
+  const safe = coopStateB64ToUrlParam(state);
+  const u = new URL(base.replace(/\/$/, '') + '/');
+  u.searchParams.set('coop', safe);
+  return u.toString();
+}
+
 function getCoopShareUrl() {
-  const direct = getCoopLink();
+  const direct = getCoopLinkForShare();
   const origin = typeof COOP_PREVIEW_ORIGIN === 'string' ? COOP_PREVIEW_ORIGIN.trim() : '';
   if (!origin || !guesses.length) return direct;
   const last = guesses[guesses.length - 1];
